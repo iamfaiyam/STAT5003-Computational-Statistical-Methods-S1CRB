@@ -1,0 +1,402 @@
+---
+title: "Weather Prediction in Australia"
+author: "Group 1 - Faiyam Islam, Tin Duong, Geetha Balakrishnan, Daniel Poon"
+format:
+  html:
+    code-fold: true
+    code-line-numbers: true
+    number-sections: true
+    number-depth: 3
+    code-tools: true
+    embed-resources: true
+---
+
+# Overview
+
+-   "Rain in Australia" on Kaggle contains daily weather observations #from multiple weather stations in Australia from 2008 to 2018.
+
+-   The dataset includes location, date, temperature, humidity, rainfall, wind speed, direction, and other atmospheric measurements.
+
+-   The objective is to analyse the dataset and create a model to predict if it will rain tomorrow in a given Australian location based on weather conditions.
+
+---
+
+### Load the required packages
+
+```{r include=FALSE}
+#| echo: true
+#| code-overflow: wrap
+library(dplyr, warn.conflicts = FALSE) 
+library(ggplot2, warn.conflicts = FALSE)
+library(tidyverse, warn.conflicts = FALSE)
+library(caret, warn.conflicts = FALSE)
+library(randomForest, warn.conflicts = FALSE)
+library(ranger, warn.conflicts = FALSE)
+library(e1071, warn.conflicts = FALSE)
+library(class, warn.conflicts = FALSE)
+library(plotly, warn.conflicts = FALSE)
+library(data.table, warn.conflicts = FALSE) 
+library(yardstick, warn.conflicts = FALSE)
+```
+
+### Import weatherAUS dataset
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+weather_dat <- read.csv("weatherAUS.csv", header = TRUE, stringsAsFactors = FALSE)
+```
+
+### Convert categorical variables to factors
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+cat_cols <- c("Location", "WindGustDir", "WindDir9am", "WindDir3pm", "RainToday", "RainTomorrow")
+weather_dat[cat_cols] <- lapply(weather_dat[cat_cols], factor)
+```
+
+### Convert RainToday and RainTomorrow to binary variables
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+weather_dat$RainToday <- as.integer(weather_dat$RainToday == "Yes")
+weather_dat$RainTomorrow <- as.integer(weather_dat$RainTomorrow == "Yes")
+```
+
+### Remove Date and Location
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+weather_dat <- subset(weather_dat, select = -c(Date, Location))
+```
+
+---
+
+### For columns with too many missing values, replace with mean value
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+weather_dat$Evaporation[is.na(weather_dat$Evaporation)] <- round(mean(weather_dat$Evaporation, na.rm = TRUE))
+weather_dat$Sunshine[is.na(weather_dat$Sunshine)] <- round(mean(weather_dat$Sunshine, na.rm = TRUE))
+weather_dat$Cloud9am[is.na(weather_dat$Cloud9am)] <- round(mean(weather_dat$Cloud9am, na.rm = TRUE))
+weather_dat$Cloud3pm[is.na(weather_dat$Cloud3pm)] <- round(mean(weather_dat$Cloud3pm, na.rm = TRUE))
+```
+
+-   Allows preservation of the data structure.
+-   Helps preserve existing patterns and relationships in the data.
+-   May cause imputation bias, i.e. mean assumings that the missing values have same distributed as the observed values.
+
+---
+
+### Omit the rest that have missing values
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+weather_dat <- na.omit(weather_dat)
+```
+
+#### Identify categorical variables that are dependent on RainTomorrow
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+for (var in c("WindGustDir", "WindDir9am", "WindDir3pm")) {
+  cross_table <- table(weather_dat[[var]], weather_dat$RainTomorrow)
+  chi_square <- chisq.test(cross_table)
+  print(paste("Variable:", var))
+  print(chi_square)
+}
+```
+
+All three variables are dependent on RainTomorrow.
+
+---
+
+### Explore relationship between numeric variables using correlation matrix
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+cor <- cor(weather_dat[c("MinTemp","MaxTemp", "Rainfall", "Evaporation", "Sunshine", "WindGustSpeed", "WindSpeed9am", "WindSpeed3pm", "Humidity9am", "Humidity3pm", "Pressure9am", "Pressure3pm", "Cloud9am", "Cloud3pm", "Temp9am", "Temp3pm")])
+high_cor = findCorrelation(cor, cutoff = 0.6, names=TRUE)
+print(high_cor)
+```
+
+-   The aforementioned variables in `high_cor` contain r-score of 0.6 or greater.
+-   Potential multicollinearity issues.
+
+---
+
+### Remove the high correlated features
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+weather_dat <- subset(weather_dat, select = -c(MaxTemp, Temp3pm, Temp9am, Humidity9am, Pressure9am, WindGustSpeed))
+summary(weather_dat)
+```
+
+### Convert factors to numeric
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+weather_dat$WindGustDir = as.numeric(weather_dat$WindGustDir)
+weather_dat$WindDir9am = as.numeric(weather_dat$WindDir9am)
+weather_dat$WindDir3pm = as.numeric(weather_dat$WindDir3pm)
+```
+
+---
+
+### Applying PCA to reduce the dimensions
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+pca <- prcomp(weather_dat)
+summary(pca)
+```
+
+-   PC1 can explain 53.41% of variance and PC2 can explain 14.21%.
+-   Scree plot can help us to choose the number of PC to retain.
+
+---
+
+### PCA plot
+
+```{r fig.align='center'}
+#| echo: true
+#| code-overflow: wrap
+plot(pca, type="line", main="Scree Plot")
+abline(h=1,col="red")
+```
+
+---
+
+### Create new dataframe contains the most important components
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+PC_df <- pca$x[,1:3]
+PC_df <- as.data.frame(PC_df)
+PC_df <- cbind(RainTomorrow = weather_dat$RainTomorrow, PC_df) 
+head(PC_df)
+```
+
+### Split the preprocessed dataset into training and test set
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+set.seed(20230521)
+training_indices <- caret::createDataPartition(weather_dat$RainTomorrow, p = 0.80,list=FALSE)
+train_dat <- weather_dat[training_indices, ]
+test_dat <- weather_dat[-training_indices, ]
+train_dat <- na.omit(train_dat)
+test_dat <- na.omit(test_dat)
+```
+
+### Logistic Regression Model
+
+```{r}
+train_dat$RainTomorrow <- as.factor(train_dat$RainTomorrow)
+
+# Specify the control parameters for cross-validation
+tr_ctrl <- trainControl(method = "cv", number = 5, savePredictions = TRUE)
+
+# Perform logistic regression with cross-validation 
+logit_model <- train(RainTomorrow ~ ., data = train_dat, method = "glm",
+                trControl = tr_ctrl)
+
+pred <- logit_model$pred
+pred$equal <- ifelse(pred$pred == pred$obs, 1,0)
+logit_eachfold <- pred %>%                                        
+  group_by(Resample) %>%                         
+  summarise(Accuracy = mean(equal)*100,
+  Precision = (sum(pred == 1 & obs == 1) / sum(pred == 1))*100,
+  Recall = (sum(pred == 1 & obs == 1) / sum(obs == 1))*100,
+  F1 = (2 * (Precision * Accuracy) / (Precision + Accuracy))) %>%
+  mutate_at(vars(Accuracy, Precision, F1), round, 2)
+print(logit_eachfold)
+logit_predictions <- predict(logit_model, newdata = test_dat)
+
+logit_accuracy <- mean(logit_predictions == test_dat$RainTomorrow, na.rm = TRUE) * 100
+logit_cm <- confusionMatrix(as.factor(logit_predictions),as.factor(test_dat$RainTomorrow))
+
+# Calculate precision 
+logit_precision <- logit_cm$byClass["Pos Pred Value"] * 100
+
+# Calculate recall 
+logit_recall <- logit_cm$byClass["Sensitivity"] * 100
+
+# Calculate F1-score
+logit_f1_score <- logit_cm$byClass["F1"] * 100
+
+logit_metrics <- data.frame(Classifier = "Logistic Regression",
+                            Accuracy = round(logit_accuracy,2),
+                            Precision = round(logit_precision,2),
+                            Recall = round(logit_recall,2),
+                            F1 = round(logit_f1_score,2))
+print(logit_metrics)
+```
+
+### NaiveBayes model
+```{r}
+# Specify the control parameters for cross-validation
+tr_ctrl <- trainControl(method = "cv", number = 5, savePredictions = TRUE)
+
+# Perform NB with cross-validation 
+nb_model <- train(RainTomorrow ~ ., data = train_dat, method = "naive_bayes",
+                 trControl = tr_ctrl)
+
+pred <- nb_model$pred
+pred$equal <- ifelse(pred$pred == pred$obs, 1,0)
+nb_eachfold <- pred %>%                                        
+  group_by(Resample) %>%                         
+  summarise(Accuracy = mean(equal, na.rm = TRUE)*100,
+  Precision = (sum(pred == 1 & obs == 1, na.rm = TRUE) / sum(pred == 1, na.rm = TRUE))*100,
+  Recall = (sum(pred == 1 & obs == 1, na.rm = TRUE) / sum(obs == 1, na.rm = TRUE))*100,
+  F1 = (2 * (Precision * Accuracy) / (Precision + Accuracy))) %>%
+  mutate_at(vars(Accuracy, Precision, F1), round, 2)
+print(nb_eachfold)
+
+nb_predictions <- predict(nb_model, newdata = test_dat)
+
+nb_accuracy <- mean(nb_predictions == test_dat$RainTomorrow, na.rm = TRUE) * 100
+nb_cm <- confusionMatrix(as.factor(nb_predictions),as.factor(test_dat$RainTomorrow))
+
+# Calculate precision 
+nb_precision <- nb_cm$byClass["Pos Pred Value"] * 100
+
+# Calculate recall 
+nb_recall <- nb_cm$byClass["Sensitivity"] * 100
+
+# Calculate F1-score
+nb_f1_score <- nb_cm$byClass["F1"] * 100
+
+nb_metrics <- data.frame(Classifier = "NaiveBayes",
+                            Accuracy = round(nb_accuracy,2),
+                            Precision = round(nb_precision,2),
+                            Recall = round(nb_recall,2),
+                            F1 = round(nb_f1_score,2))
+print(nb_metrics)
+
+```
+
+### Ranger model
+```{r}
+# Specify the control parameters for cross-validation
+tr_ctrl <- trainControl(method = "cv", number = 5, savePredictions = TRUE)
+
+# Define the parameter grid for each classification method
+param_grid_ranger <- expand.grid(mtry = c(2, 4, 6),
+                                 splitrule = c("gini"),
+                                 min.node.size = c(1, 5, 10))
+
+# Perform ranger (Random Forest) with cross-validation and parameter tuning
+ranger_model <- train(RainTomorrow ~ ., data = train_dat, method = "ranger",
+                    trControl = tr_ctrl, tuneGrid = param_grid_ranger)
+
+pred <- ranger_model$pred
+pred$equal <- ifelse(pred$pred == pred$obs, 1,0)
+ranger_eachfold <- pred %>%                                        
+  group_by(Resample) %>%                         
+  summarise(Accuracy = mean(equal, na.rm = TRUE)*100,
+  Precision = (sum(pred == 1 & obs == 1, na.rm = TRUE) / sum(pred == 1, na.rm = TRUE))*100,
+  Recall = (sum(pred == 1 & obs == 1, na.rm = TRUE) / sum(obs == 1, na.rm = TRUE))*100,
+  F1 = (2 * (Precision * Accuracy) / (Precision + Accuracy))) %>%
+  mutate_at(vars(Accuracy, Precision, F1), round, 2)
+print(ranger_eachfold)
+plot(ranger_model)
+ranger_predictions <- predict(ranger_model, newdata = test_dat)
+
+ranger_accuracy <- mean(ranger_predictions == test_dat$RainTomorrow, na.rm = TRUE) * 100
+ranger_cm <- confusionMatrix(as.factor(ranger_predictions),as.factor(test_dat$RainTomorrow))
+
+# Calculate precision 
+ranger_precision <- ranger_cm$byClass["Pos Pred Value"] * 100
+
+# Calculate recall 
+ranger_recall <- ranger_cm$byClass["Sensitivity"] * 100
+
+# Calculate F1-score
+ranger_f1_score <- ranger_cm$byClass["F1"] * 100
+
+ranger_metrics <- data.frame(Classifier = "Ranger",
+                            Accuracy = round(ranger_accuracy,2),
+                            Precision = round(ranger_precision,2),
+                            Recall = round(ranger_recall,2),
+                            F1 = round(ranger_f1_score,2))
+print(ranger_metrics)
+
+
+```
+
+### kNN model
+
+```{r}
+# Specify the control parameters for cross-validation
+tr_ctrl <- trainControl(method="repeatedcv", number=10, repeats=3)
+metric <- "Accuracy"
+
+# Define the parameter grid for kNN
+param_grid_knn <- expand.grid(k = c(2, 3, 5, 10))
+
+# Perform kNN with cross-validation and parameter tuning
+knn_model <- train(RainTomorrow ~ ., data = train_dat, method = "knn",
+                 trControl = tr_ctrl, metric = metric,
+                 tuneGrid = param_grid_knn)
+print(knn_model)
+
+plot(knn_model)
+
+knn_predictions <- predict(knn_model, newdata = test_dat)
+
+knn_accuracy <- mean(knn_predictions == test_dat$RainTomorrow, na.rm = TRUE) * 100
+knn_cm <- confusionMatrix(as.factor(knn_predictions),as.factor(test_dat$RainTomorrow))
+
+# Calculate precision 
+knn_precision <- knn_cm$byClass["Pos Pred Value"] * 100
+
+# Calculate recall 
+knn_recall <- knn_cm$byClass["Sensitivity"] * 100
+
+# Calculate F1-score
+knn_f1_score <- knn_cm$byClass["F1"] * 100
+
+knn_metrics <- data.frame(Classifier = "kNN",
+                            Accuracy = round(knn_accuracy,2),
+                            Precision = round(knn_precision,2),
+                            Recall = round(knn_recall,2),
+                            F1 = round(knn_f1_score,2))
+print(knn_metrics)
+```
+
+### Plot for model metrics
+
+```{r fig.align='center'}
+#| echo: true
+#| code-overflow: wrap
+# Merge all the model metrics
+metrics_table <- bind_rows(logit_metrics, nb_metrics, ranger_metrics, knn_metrics)
+
+# Melt the metrics table into long format
+metrics_melted <- reshape2::melt(metrics_table, id.vars = "Classifier", variable.name = "Metric", value.name = "Value")
+
+# Create the bar plot
+plot <- ggplot(metrics_melted, aes(x = Classifier, y = Value, fill = Metric)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Classifier", y = "Score", fill = "Metric") +
+  ggtitle("Performance Metrics") +
+  theme_minimal()
+
+# Display the plot
+print(plot)
+```
+

@@ -1,0 +1,388 @@
+---
+title: "Final Report"
+subtitle: "by Tin, Geetha, Faiyam"
+format:
+    html:
+        code-fold: true
+        code-line-numbers: true
+        number-depth: 1
+        code-tools: true
+        embed-resources: true
+editor: visual
+---
+
+### Overview
+
+The ["Rain in Australia"](https://www.kaggle.com/datasets/jsphyg/weather-dataset-rattle-package?datasetId=6012&sortBy=voteCount&language=R) dataset available on Kaggle contains daily weather observations from numerous weather stations across Australia, spanning over a period of 10 years from 2008 to 2018. The dataset consists of 145460 rows and 23 columns with various data types including numerical and categorical, providing various details about the weather conditions.
+
+Features in the dataset include Date, which indicates the date of the recorded weather data, and Location, which specifies the location of the weather station. Other attributes describe weather-related information, such as Rainfall and Evaporation in millimetres, Sunshine (in hours), WindGustDir (direction of the strongest wind gust in compass points) and WindSpeed9am/WindSpeed3pm (wind speed in killometres per hour at 9am and 3pm respectively). The dataset also includes attributes related to temperature, humidity, pressure and cloud cover. These attributes provide further insight into the weather conditions, allowing analysis of temperature variations, air pressure levels and cloudiness.
+
+The objective of this project is to examine the provided dataset and construct a model capable of accurately forecasting whether it will rain the following day in a specific location in Australia, taking into account the prevailing weather conditions. Several classification methods, such as Logistic Regression, K-Nearest Neighbours (kNN), Decision Trees, Random Forest, Support Vector Machines (SVM), and Naive Bayes techniques will be employed to ascertain the target variable. Performance metrics such as Accuracy, Precision, Recall, and F1 Score will be utilised to assess the effectiveness of these techniques. By utilising these approaches and evaluation measures, the project seeks to develop a reliable model that can provide accurate predictions regarding rainfall occurrence based on the given weather parameters.
+
+### Exploratory Data Analysis
+
+We are working on a classification task, determining if tomorrow will rain or not for a particular location in Australia. Let's first investigate the various attributes and patterns within the dataset, examining the distribution of the variables and calculating descriptive statistics.
+
+```{r include=FALSE}
+#| echo: true
+library(dplyr, warn.conflicts = FALSE) 
+library(ggplot2, warn.conflicts = FALSE)
+library(tidyverse, warn.conflicts = FALSE)
+library(caret, warn.conflicts = FALSE)
+library(randomForest, warn.conflicts = FALSE)
+library(ranger, warn.conflicts = FALSE)
+library(e1071, warn.conflicts = FALSE)
+library(class, warn.conflicts = FALSE)
+library(plotly, warn.conflicts = FALSE)
+library(data.table, warn.conflicts = FALSE) 
+library(yardstick, warn.conflicts = FALSE)
+```
+
+```{r}
+weather_dat <- read.csv("weatherAUS.csv", header = TRUE, stringsAsFactors = FALSE)
+```
+
+Due to the large dataset, for the sake of simplicity we have completed our initial data analysis and visualisation for Melbourne only.
+
+```{r}
+weather.melb <- weather_dat %>%
+  filter(Location == "Melbourne")
+
+weather.melb$Date <- as.Date(weather.melb$Date)
+weather.melb$RainTomorrow <- as.factor(weather.melb$RainTomorrow) 
+weather.melb$RainTomorrow[is.na(weather.melb$RainTomorrow)] <- as.factor("No")
+```
+
+```{r}
+weather.melb %>%
+  ggplot(aes(x = Rainfall)) + geom_histogram(binwidth = 3) + ggtitle("Figure 1: Histogram of Rainfall in Melbourne")
+```
+
+We begin with an initial inspection of figure 1 containing the rainfall in Melbourne. The right tailed distribution especially indicates there is minimal to no rain in Melbourne.
+
+```{r}
+no_raindays <- 
+  weather.melb %>% filter(Rainfall == 0) %>% nrow() 
+paste0(no_raindays/nrow(weather.melb) * 100, "%")
+```
+
+We confirm that only 45.54% of the weather in Melbourne consists of rain.
+
+```{r}
+interactive_plot <- ggplot(weather.melb, aes(x = Date, y = MaxTemp)) +
+  geom_line() + geom_smooth() + ggtitle("Figure 2: Maximum temperature in Melbourne")
+ggplotly(interactive_plot)
+```
+
+Figure 2 displays a plot of maximum temperature of Melbourne from 2008 to 2018. The presence of seasonality is shown in the plot through the cyclic pattern, however we observe a large gap between 2015-2016, indicating a lot of missing values.
+
+```{r}
+weather.melb %>%
+  ggplot(aes(x = RainTomorrow, y = Humidity3pm, colour = RainTomorrow, fill = RainTomorrow)) + geom_violin() + ggtitle("Figure 3: Violin plot of Humidity3pm against RainTomorrow")
+```
+
+Another way to visualise distribution is through a violin plot. We observe that the highest density frequency for rain and no rain occurs at around 50 for Humidity3pm.
+
+We can scrutinise the relationship between the Humidity3pm and Rainfall variable in a scatterplot:
+
+```{r}
+weather.melb %>%
+  ggplot(aes(x = Humidity3pm, y = Rainfall)) + 
+  geom_point() + geom_smooth(method = "lm") + ggtitle("Figure 4: Scatterplot of Humidity3pm against Rainfall")
+```
+
+The line of best fit in figure 4 indicates a positive linear relationship, not a weak one. The scatter plots seem to be hovering around 0, with most of the frequency occurring at 50 Humidity3pm. Outliers are present, therefore we require data pre-processing.
+
+### Feature Engineering
+
+```{r}
+# Convert categorical variables to factors
+cat_cols <- c("Location", "WindGustDir", "WindDir9am", "WindDir3pm", "RainToday", "RainTomorrow")
+weather_dat[cat_cols] <- lapply(weather_dat[cat_cols], factor)
+
+# Convert RainToday and RainTomorrow to binary variables
+weather_dat$RainToday <- as.integer(weather_dat$RainToday == "Yes")
+weather_dat$RainTomorrow <- as.integer(weather_dat$RainTomorrow == "Yes")
+
+# Remove date and location 
+weather_dat <- subset(weather_dat, select = -c(Date, Location))
+```
+
+```{r}
+# Handling missing values in dataset
+weather_dat$Evaporation[is.na(weather_dat$Evaporation)] <- round(mean(weather_dat$Evaporation, na.rm = TRUE))
+weather_dat$Sunshine[is.na(weather_dat$Sunshine)] <- round(mean(weather_dat$Sunshine, na.rm = TRUE))
+weather_dat$Cloud9am[is.na(weather_dat$Cloud9am)] <- round(mean(weather_dat$Cloud9am, na.rm = TRUE))
+weather_dat$Cloud3pm[is.na(weather_dat$Cloud3pm)] <- round(mean(weather_dat$Cloud3pm, na.rm = TRUE))
+```
+
+Replacing missing values with mean values allows preservation of the data structure, preserves existing patterns and relationships in the data, but issue is this method may cause imputation bias.
+
+```{r}
+# Omit the rest of the missing values 
+weather_dat <- na.omit(weather_dat) 
+
+# Identify categoical predictors that are dependenton RainTomorrow
+for (var in c("WindGustDir", "WindDir9am", "WindDir3pm")) {
+  cross_table <- table(weather_dat[[var]], weather_dat$RainTomorrow)
+  chi_square <- chisq.test(cross_table)
+  print(paste("Variable:", var))
+  print(chi_square)
+}
+```
+
+Based on the p-values derived from the Chi-square tests, all three variables are dependent on RainTomorrow.
+
+```{r}
+# Relationship between numeric variables using correlation matrix
+cor <- cor(weather_dat[c("MinTemp","MaxTemp", "Rainfall", "Evaporation", "Sunshine", "WindGustSpeed", "WindSpeed9am", "WindSpeed3pm", "Humidity9am", "Humidity3pm", "Pressure9am", "Pressure3pm", "Cloud9am", "Cloud3pm", "Temp9am", "Temp3pm")])
+high_cor = findCorrelation(cor, cutoff = 0.6, names=TRUE)
+print(high_cor)
+```
+
+The following variables, due to having r-score values of 0.6 or greater, has high correlation between other predictors.
+
+```{r}
+# Removing the highly correlated features
+weather_dat <- subset(weather_dat, select = -c(MaxTemp, Temp3pm, Temp9am, Humidity9am, Pressure9am, WindGustSpeed))
+
+# Convert factors to numeric
+weather_dat$WindGustDir = as.numeric(weather_dat$WindGustDir)
+weather_dat$WindDir9am = as.numeric(weather_dat$WindDir9am)
+weather_dat$WindDir3pm = as.numeric(weather_dat$WindDir3pm)
+```
+
+```{r}
+# Apply PCA to reduce the dimensions
+pca <- prcomp(weather_dat) 
+summary(pca) 
+```
+
+From the output we observe PC1 can explain 53.41% of variance and PC2 can explain 14.21%. A screen plot can assist us to choose the number of principal components to retain.
+
+```{r}
+# PCA Plot
+plot(pca, type="line", main="Scree Plot")
+abline(h=1,col="red")
+```
+
+```{r}
+# Create new dataframe contains the most important components
+PC_df <- pca$x[,1:3]
+PC_df <- as.data.frame(PC_df)
+PC_df <- cbind(RainTomorrow = weather_dat$RainTomorrow, PC_df) 
+head(PC_df)
+```
+
+### Results
+
+Beginning the results section of this report, we have collated various classification algorithms and evaluated them using various evaluation metrics. However, we first begin with splitting the dataset into training and test.
+
+### Split the preprocessed dataset into training and test set
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+set.seed(20230521)
+training_indices <- caret::createDataPartition(weather_dat$RainTomorrow, p = 0.80,list=FALSE)
+train_dat <- weather_dat[training_indices, ]
+test_dat <- weather_dat[-training_indices, ]
+train_dat <- na.omit(train_dat)
+test_dat <- na.omit(test_dat)
+```
+
+### Logistic Regression Model
+
+As the target variable is binary, this model has been chosen. We have trained the logistic regression model using 5-folds cross validation, predictions are made for each fold then evaluation metrics(accuracy,precision,recall and f1) are determined for each fold and tabulated. The trained model is then used to predict the test set and evaluate further.
+
+```{r}
+train_dat$RainTomorrow <- as.factor(train_dat$RainTomorrow)
+
+# Specify the control parameters for cross-validation
+tr_ctrl <- trainControl(method = "cv", number = 5, savePredictions = TRUE)
+
+# Perform logistic regression with cross-validation 
+logit_model <- train(RainTomorrow ~ ., data = train_dat, method = "glm",
+                trControl = tr_ctrl)
+
+pred <- logit_model$pred
+pred$equal <- ifelse(pred$pred == pred$obs, 1,0)
+logit_eachfold <- pred %>%                                        
+  group_by(Resample) %>%                         
+  summarise(Accuracy = mean(equal)*100,
+  Precision = (sum(pred == 1 & obs == 1) / sum(pred == 1))*100,
+  Recall = (sum(pred == 1 & obs == 1) / sum(obs == 1))*100,
+  F1 = (2 * (Precision * Accuracy) / (Precision + Accuracy))) %>%
+  mutate_at(vars(Accuracy, Precision, F1), round, 2)
+print(logit_eachfold)
+logit_predictions <- predict(logit_model, newdata = test_dat)
+
+logit_accuracy <- mean(logit_predictions == test_dat$RainTomorrow, na.rm = TRUE) * 100
+logit_cm <- confusionMatrix(as.factor(logit_predictions),as.factor(test_dat$RainTomorrow))
+
+# Calculate precision 
+logit_precision <- logit_cm$byClass["Pos Pred Value"] * 100
+
+# Calculate recall 
+logit_recall <- logit_cm$byClass["Sensitivity"] * 100
+
+# Calculate F1-score
+logit_f1_score <- logit_cm$byClass["F1"] * 100
+
+logit_metrics <- data.frame(Classifier = "Logistic Regression",
+                            Accuracy = round(logit_accuracy,2),
+                            Precision = round(logit_precision,2),
+                            Recall = round(logit_recall,2),
+                            F1 = round(logit_f1_score,2))
+
+print(logit_metrics)
+```
+
+From the above evaluation metrics for each fold, this model has a moderate precision score in correctly predicting the rain occurrences. Also, from the model co-efficients it is clear that certain attributes like MinTemp and Sunshine have a negative impact on the rain occurrence. But considering the evaluation metrics for the test set, this model has performed well with a better overall accuracy, much better precision/recall/f1-score and less computation time.
+
+### NaiveBayes model
+
+NaiveBayes model has been trained using 5-fold cross validation, predictions are made for each fold then evaluation metrics(accuracy,precision,recall and f1) are determined for each fold and tabulated. The trained model is then used to predict the test set and evaluate further.
+
+```{r}
+# Specify the control parameters for cross-validation
+tr_ctrl <- trainControl(method = "cv", number = 5, savePredictions = TRUE)
+
+# Perform NB with cross-validation 
+nb_model <- train(RainTomorrow ~ ., data = train_dat, method = "naive_bayes",
+                 trControl = tr_ctrl)
+
+pred <- nb_model$pred
+pred$equal <- ifelse(pred$pred == pred$obs, 1,0)
+nb_eachfold <- pred %>%                                        
+  group_by(Resample) %>%                         
+  summarise(Accuracy = mean(equal, na.rm = TRUE)*100,
+  Precision = (sum(pred == 1 & obs == 1, na.rm = TRUE) / sum(pred == 1, na.rm = TRUE))*100,
+  Recall = (sum(pred == 1 & obs == 1, na.rm = TRUE) / sum(obs == 1, na.rm = TRUE))*100,
+  F1 = (2 * (Precision * Accuracy) / (Precision + Accuracy))) %>%
+  mutate_at(vars(Accuracy, Precision, F1), round, 2)
+print(nb_eachfold)
+
+nb_predictions <- predict(nb_model, newdata = test_dat)
+
+nb_accuracy <- mean(nb_predictions == test_dat$RainTomorrow, na.rm = TRUE) * 100
+nb_cm <- confusionMatrix(as.factor(nb_predictions),as.factor(test_dat$RainTomorrow))
+
+# Calculate precision 
+nb_precision <- nb_cm$byClass["Pos Pred Value"] * 100
+
+# Calculate recall 
+nb_recall <- nb_cm$byClass["Sensitivity"] * 100
+
+# Calculate F1-score
+nb_f1_score <- nb_cm$byClass["F1"] * 100
+
+nb_metrics <- data.frame(Classifier = "NaiveBayes",
+                            Accuracy = round(nb_accuracy,2),
+                            Precision = round(nb_precision,2),
+                            Recall = round(nb_recall,2),
+                            F1 = round(nb_f1_score,2))
+print(nb_metrics)
+
+```
+
+NaiveBayes - Probablistic model is not quite fast in terms of computation time but from the evaluation metrics, this is an average model as the overall accuracy and precision score are comparatively less than logistic regression for the cross validation folds but it has performed well when looking at the test data evaluation metrics.
+
+### Ranger model
+
+Faster implementation of RandomForest. It is important to note that compared to other models, we have omitted cross validation on k folds for Ranger model, due to time constraints.
+
+```{r}
+# Evaluation of Ranger model 
+ranger_model <- ranger(train_dat$RainTomorrow ~ ., data = train_dat,num.trees = 1)
+ranger_prediction <- predict(ranger_model, data = test_dat)[["predictions"]]
+# ranger_prediction <- ifelse(ranger_prediction > 0.5, "1", "0")
+ranger_accuracy <- mean(ranger_prediction == test_dat$RainTomorrow, na.rm = TRUE) * 100
+cm <- confusionMatrix(factor(ranger_prediction),factor(test_dat$RainTomorrow))
+
+# Calculate precision 
+precision_ranger <- cm$byClass["Pos Pred Value"]
+
+# Calculate recall 
+recall_ranger <- cm$byClass["Sensitivity"]
+
+# Calculate F1-score
+f1_score_ranger <- cm$byClass["F1"]
+
+# Print the evaluation metrics
+print(paste("Accuracy:", ranger_accuracy))
+print(paste("Precision:", precision_ranger))
+print(paste("Recall:", recall_ranger))
+print(paste("F1-score:", f1_score_ranger))
+```
+
+Ranger model is computationally expensive but from the evaluation metrics, this is one of the benchmark models as the overall accuracy and precision score are comparatively higher than other models for the cross validation folds and it has a relatively good generalization ability based on the test evaluation metrics - overall accuracy, precision, recall and f1-score.
+
+### kNN model
+
+kNN model has been trained using 5-fold cross validation with parameter tuning for k (number of clusters), predictions are made for each fold then evaluation metrics are determined for each fold and tabulated. The trained model is then used to predict the test set and evaluate further.
+
+```{r}
+# Specify the control parameters for cross-validation
+tr_ctrl <- trainControl(method="repeatedcv", number=10, repeats=3)
+metric <- "Accuracy"
+
+# Define the parameter grid for kNN
+param_grid_knn <- expand.grid(k = c(2, 3, 5, 10))
+
+# Perform kNN with cross-validation and parameter tuning
+knn_model <- train(RainTomorrow ~ ., data = train_dat, method = "knn",
+                 trControl = tr_ctrl, metric = metric,
+                 tuneGrid = param_grid_knn)
+print(knn_model)
+
+plot(knn_model)
+
+knn_predictions <- predict(knn_model, newdata = test_dat)
+
+knn_accuracy <- mean(knn_predictions == test_dat$RainTomorrow, na.rm = TRUE) * 100
+knn_cm <- confusionMatrix(as.factor(knn_predictions),as.factor(test_dat$RainTomorrow))
+
+# Calculate precision 
+knn_precision <- knn_cm$byClass["Pos Pred Value"] * 100
+
+# Calculate recall 
+knn_recall <- knn_cm$byClass["Sensitivity"] * 100
+
+# Calculate F1-score
+knn_f1_score <- knn_cm$byClass["F1"] * 100
+
+knn_metrics <- data.frame(Classifier = "kNN",
+                            Accuracy = round(knn_accuracy,2),
+                            Precision = round(knn_precision,2),
+                            Recall = round(knn_recall,2),
+                            F1 = round(knn_f1_score,2))
+print(knn_metrics)
+```
+
+k=5 seems to be the right choice of clusters as the overall accuracy plot shows an elbow curve with highest accuracy for k=10. Looking at the evaluation metrics for test set, this is also a benchmark model for rain prediction as the overall accuracy, precision, recall and f1 score are close enough to ranger model so kNN seems to be a strong contender.
+
+### Plot for model metrics
+
+```{r fig.align='center'}
+#| echo: true
+#| code-overflow: wrap
+# Merge all the model metrics
+metrics_table <- bind_rows(logit_metrics, nb_metrics, knn_metrics)
+
+# Melt the metrics table into long format
+metrics_melted <- reshape2::melt(metrics_table, id.vars = "Classifier", variable.name = "Metric", value.name = "Value")
+
+# Create the bar plot
+plot <- ggplot(metrics_melted, aes(x = Classifier, y = Value, fill = Metric)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Classifier", y = "Score", fill = "Metric") +
+  ggtitle("Performance Metrics") +
+  theme_minimal()
+
+# Display the plot
+print(plot)
+print(metrics_table)
+```
+
+In summary, all four models have a better overall accuracy. However, Ranger and kNN seems to be the strong models when other metrics like precision, recall and f1 are considered. It is also to be noted that ranger model requires higher computation time but at the same it has got a better generalization ability and less prone to overfitting. On the other hand, kNN was better than ranger in terms of computation time but logistic regression is quite efficient and faster.

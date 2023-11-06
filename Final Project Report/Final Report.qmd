@@ -1,0 +1,350 @@
+---
+title: "Final Report"
+subtitle: "by Tin, Geetha, Faiyam"
+format:
+    html:
+        code-fold: true
+        code-line-numbers: true
+        number-depth: 1
+        code-tools: true
+        embed-resources: true
+editor: visual
+---
+
+### Overview
+
+The ["Rain in Australia"](https://www.kaggle.com/datasets/jsphyg/weather-dataset-rattle-package?datasetId=6012&sortBy=voteCount&language=R) dataset available on Kaggle contains daily weather observations from numerous weather stations across Australia, spanning over a period of 10 years from 2008 to 2018. The dataset consists of 145460 rows and 23 columns with various data types including numerical and categorical, providing various details about the weather conditions.
+
+Features in the dataset include Date, which indicates the date of the recorded weather data, and Location, which specifies the location of the weather station. Other attributes describe weather-related information, such as Rainfall and Evaporation in millimetres, Sunshine (in hours), WindGustDir (direction of the strongest wind gust in compass points) and WindSpeed9am/WindSpeed3pm (wind speed in killometres per hour at 9am and 3pm respectively). The dataset also includes attributes related to temperature, humidity, pressure and cloud cover. These attributes provide further insight into the weather conditions, allowing analysis of temperature variations, air pressure levels and cloudiness.
+
+The objective of this project is to examine the provided dataset and construct a model capable of accurately forecasting whether it will rain the following day in a specific location in Australia, taking into account the prevailing weather conditions. Several classification methods, such as Logistic Regression, K-Nearest Neighbours (kNN), Decision Trees, Random Forest, Support Vector Machines (SVM), and Naive Bayes techniques will be employed to ascertain the target variable. Performance metrics such as Accuracy, Precision, Recall, and F1 Score will be utilised to assess the effectiveness of these techniques. By utilising these approaches and evaluation measures, the project seeks to develop a reliable model that can provide accurate predictions regarding rainfall occurrence based on the given weather parameters.
+
+### Exploratory Data Analysis
+
+We are working on a classification task, determining if tomorrow will rain or not for a particular location in Australia. Let's first investigate the various attributes and patterns within the dataset, examining the distribution of the variables and calculating descriptive statistics.
+
+```{r include=FALSE}
+#| echo: true
+library(dplyr, warn.conflicts = FALSE) 
+library(ggplot2, warn.conflicts = FALSE)
+library(tidyverse, warn.conflicts = FALSE)
+library(caret, warn.conflicts = FALSE)
+library(randomForest, warn.conflicts = FALSE)
+library(ranger, warn.conflicts = FALSE)
+library(e1071, warn.conflicts = FALSE)
+library(class, warn.conflicts = FALSE)
+library(plotly, warn.conflicts = FALSE)
+library(data.table, warn.conflicts = FALSE) 
+library(yardstick, warn.conflicts = FALSE)
+```
+
+```{r}
+weather_dat <- read.csv("weatherAUS.csv", header = TRUE, stringsAsFactors = FALSE)
+```
+
+Due to the large dataset, for the sake of simplicity we have completed our initial data analysis and visualisation for Melbourne only.
+
+```{r}
+weather.melb <- weather_dat %>%
+  filter(Location == "Melbourne")
+
+weather.melb$Date <- as.Date(weather.melb$Date)
+weather.melb$RainTomorrow <- as.factor(weather.melb$RainTomorrow) 
+weather.melb$RainTomorrow[is.na(weather.melb$RainTomorrow)] <- as.factor("No")
+```
+
+```{r}
+weather.melb %>%
+  ggplot(aes(x = Rainfall)) + geom_histogram(binwidth = 3) + ggtitle("Figure 1: Histogram of Rainfall in Melbourne")
+```
+
+We begin with an initial inspection of figure 1 containing the rainfall in Melbourne. The right tailed distribution especially indicates there is minimal to no rain in Melbourne.
+
+```{r}
+no_raindays <- 
+  weather.melb %>% filter(Rainfall == 0) %>% nrow() 
+paste0(no_raindays/nrow(weather.melb) * 100, "%")
+```
+
+We confirm that only 45.54% of the weather in Melbourne consists of rain.
+
+```{r}
+interactive_plot <- ggplot(weather.melb, aes(x = Date, y = MaxTemp)) +
+  geom_line() + geom_smooth() + ggtitle("Figure 2: Maximum temperature in Melbourne")
+ggplotly(interactive_plot)
+```
+
+Figure 2 displays a plot of maximum temperature of Melbourne from 2008 to 2018. The presence of seasonality is shown in the plot through the cyclic pattern, however we observe a large gap between 2015-2016, indicating a lot of missing values.
+
+```{r}
+weather.melb %>%
+  ggplot(aes(x = RainTomorrow, y = Humidity3pm, colour = RainTomorrow, fill = RainTomorrow)) + geom_violin() + ggtitle("Figure 3: Violin plot of Humidity3pm against RainTomorrow")
+```
+
+Another way to visualise distribution is through a violin plot. We observe that the highest density frequency for rain and no rain occurs at around 50 for Humidity3pm.
+
+We can scrutinise the relationship between the Humidity3pm and Rainfall variable in a scatterplot:
+
+```{r}
+weather.melb %>%
+  ggplot(aes(x = Humidity3pm, y = Rainfall)) + 
+  geom_point() + geom_smooth(method = "lm") + ggtitle("Figure 4: Scatterplot of Humidity3pm against Rainfall")
+```
+
+The line of best fit in figure 4 indicates a positive linear relationship, not a weak one. The scatter plots seem to be hovering around 0, with most of the frequency occurring at 50 Humidity3pm. Outliers are present, therefore we require data pre-processing.
+
+### Feature Engineering
+
+```{r}
+# Convert categorical variables to factors
+cat_cols <- c("Location", "WindGustDir", "WindDir9am", "WindDir3pm", "RainToday", "RainTomorrow")
+weather_dat[cat_cols] <- lapply(weather_dat[cat_cols], factor)
+
+# Convert RainToday and RainTomorrow to binary variables
+weather_dat$RainToday <- as.integer(weather_dat$RainToday == "Yes")
+weather_dat$RainTomorrow <- as.integer(weather_dat$RainTomorrow == "Yes")
+
+# Remove date and location 
+weather_dat <- subset(weather_dat, select = -c(Date, Location))
+```
+
+```{r}
+# Handling missing values in dataset
+weather_dat$Evaporation[is.na(weather_dat$Evaporation)] <- round(mean(weather_dat$Evaporation, na.rm = TRUE))
+weather_dat$Sunshine[is.na(weather_dat$Sunshine)] <- round(mean(weather_dat$Sunshine, na.rm = TRUE))
+weather_dat$Cloud9am[is.na(weather_dat$Cloud9am)] <- round(mean(weather_dat$Cloud9am, na.rm = TRUE))
+weather_dat$Cloud3pm[is.na(weather_dat$Cloud3pm)] <- round(mean(weather_dat$Cloud3pm, na.rm = TRUE))
+```
+
+Replacing missing values with mean values allows preservation of the data structure, preserves existing patterns and relationships in the data, but issue is this method may cause imputation bias.
+
+```{r}
+# Omit the rest of the missing values 
+weather_dat <- na.omit(weather_dat) 
+
+# Identify categoical predictors that are dependenton RainTomorrow
+for (var in c("WindGustDir", "WindDir9am", "WindDir3pm")) {
+  cross_table <- table(weather_dat[[var]], weather_dat$RainTomorrow)
+  chi_square <- chisq.test(cross_table)
+  print(paste("Variable:", var))
+  print(chi_square)
+}
+```
+
+Based on the p-values derived from the Chi-square tests, all three variables are dependent on RainTomorrow.
+
+```{r}
+# Relationship between numeric variables using correlation matrix
+cor <- cor(weather_dat[c("MinTemp","MaxTemp", "Rainfall", "Evaporation", "Sunshine", "WindGustSpeed", "WindSpeed9am", "WindSpeed3pm", "Humidity9am", "Humidity3pm", "Pressure9am", "Pressure3pm", "Cloud9am", "Cloud3pm", "Temp9am", "Temp3pm")])
+high_cor = findCorrelation(cor, cutoff = 0.6, names=TRUE)
+print(high_cor)
+```
+
+The following variables, due to having r-score values of 0.6 or greater, has high correlation between other predictors.
+
+```{r}
+# Removing the highly correlated features
+weather_dat <- subset(weather_dat, select = -c(MaxTemp, Temp3pm, Temp9am, Humidity9am, Pressure9am, WindGustSpeed))
+
+# Convert factors to numeric
+weather_dat$WindGustDir = as.numeric(weather_dat$WindGustDir)
+weather_dat$WindDir9am = as.numeric(weather_dat$WindDir9am)
+weather_dat$WindDir3pm = as.numeric(weather_dat$WindDir3pm)
+```
+
+```{r}
+# Apply PCA to reduce the dimensions
+pca <- prcomp(weather_dat) 
+summary(pca) 
+```
+
+From the output we observe PC1 can explain 53.41% of variance and PC2 can explain 14.21%. A screen plot can assist us to choose the number of principal components to retain.
+
+```{r}
+# PCA Plot
+plot(pca, type="line", main="Scree Plot")
+abline(h=1,col="red")
+```
+
+```{r}
+# Create new dataframe contains the most important components
+PC_df <- pca$x[,1:3]
+PC_df <- as.data.frame(PC_df)
+PC_df <- cbind(RainTomorrow = weather_dat$RainTomorrow, PC_df) 
+head(PC_df)
+```
+
+### Results
+
+Beginning the results section of this report, we have collated various classification algorithms and evaluated them using various evaluation metrics. However, we first begin with splitting the dataset into training and test.
+
+```{r}
+set.seed(20230521)
+training_indices <- caret::createDataPartition(PC_df$RainTomorrow, list = FALSE,
+                                               p = 0.80)[ ,1]
+train_dat <- PC_df[training_indices, ]
+test_dat <- PC_df[-training_indices, ]
+```
+
+```{r}
+# Split the pre-processed dataset into training and test set
+set.seed(20230521)
+training_indices <- caret::createDataPartition(PC_df$RainTomorrow, list = FALSE,
+                                               p = 0.80)[ ,1]
+train_dat <- PC_df[training_indices, ]
+test_dat <- PC_df[-training_indices, ]
+```
+
+```{r}
+# Training the classification models
+logit_model <- glm(train_dat$RainTomorrow ~ ., family = binomial, data = train_dat)
+ranger_model <- ranger(train_dat$RainTomorrow ~ ., data = train_dat,num.trees = 1)
+nb_model <- naiveBayes(train_dat$RainTomorrow ~ ., data = train_dat)
+knn_model <- with(train_dat,
+                  knn(train = train_dat, 
+                      test = test_dat, 
+                      cl = train_dat$RainTomorrow,
+                      k = 2,
+                      prob = TRUE))
+```
+
+```{r}
+# Predict using the test dataset
+logit_prediction <- predict(logit_model, newdata = test_dat)
+logit_prediction <- ifelse(logit_prediction > 0.5, "1", "0")
+nb_prediction <- predict(nb_model, newdata = test_dat)
+ranger_prediction <- predict(ranger_model, data = test_dat)[["predictions"]]
+ranger_prediction <- ifelse(ranger_prediction > 0.5, "1", "0")
+knn_prediction <- knn_model
+knn_probs <- attr(knn_model, "prob")
+```
+
+```{r}
+# Evaluation of logistic regression 
+logit_accuracy <- mean(logit_prediction == test_dat$RainTomorrow, na.rm = TRUE) * 100
+cm <- confusionMatrix(as.factor(logit_prediction),as.factor(test_dat$RainTomorrow))
+
+# Calculate precision 
+precision_logit <- cm$byClass["Pos Pred Value"]
+
+# Calculate recall 
+recall_logit <- cm$byClass["Sensitivity"]
+
+# Calculate F1-score
+f1_score_logit <- cm$byClass["F1"]
+
+# Print the evaluation metrics
+print(paste("Accuracy:", logit_accuracy))
+print(paste("Precision:", precision_logit))
+print(paste("Recall:", recall_logit))
+print(paste("F1-score:", f1_score_logit))
+```
+
+```{r}
+# Evaluation of Naive Bayes 
+nb_accuracy <- mean(nb_prediction == test_dat$RainTomorrow, na.rm = TRUE) * 100
+cm <- confusionMatrix(as.factor(nb_prediction),as.factor(test_dat$RainTomorrow))
+
+# Calculate precision 
+precision_nb <- cm$byClass["Pos Pred Value"]
+
+# Calculate recall 
+recall_nb <- cm$byClass["Sensitivity"]
+
+# Calculate F1-score
+f1_score_nb <- cm$byClass["F1"]
+
+# Print the evaluation metrics
+print(paste("Accuracy:", nb_accuracy))
+print(paste("Precision:", precision_nb))
+print(paste("Recall:", recall_nb))
+print(paste("F1-score:", f1_score_nb))
+```
+
+```{r}
+# Evaluation of Ranger model 
+ranger_accuracy <- mean(ranger_prediction == test_dat$RainTomorrow, na.rm = TRUE) * 100
+cm <- confusionMatrix(factor(ranger_prediction),factor(test_dat$RainTomorrow))
+
+# Calculate precision 
+precision_ranger <- cm$byClass["Pos Pred Value"]
+
+# Calculate recall 
+recall_ranger <- cm$byClass["Sensitivity"]
+
+# Calculate F1-score
+f1_score_ranger <- cm$byClass["F1"]
+
+# Print the evaluation metrics
+print(paste("Accuracy:", ranger_accuracy))
+print(paste("Precision:", precision_ranger))
+print(paste("Recall:", recall_ranger))
+print(paste("F1-score:", f1_score_ranger))
+```
+
+```{r}
+# Evaluation of kNN 
+knn_accuracy <- mean(knn_prediction == test_dat$RainTomorrow, na.rm = TRUE) * 100
+cm <- confusionMatrix(factor(knn_prediction),factor(test_dat$RainTomorrow))
+
+# Calculate precision 
+precision_knn <- cm$byClass["Pos Pred Value"]
+
+# Calculate recall 
+recall_knn <- cm$byClass["Sensitivity"]
+
+# Calculate F1-score
+f1_score_knn <- cm$byClass["F1"]
+
+# Print the evaluation metrics
+print(paste("Accuracy:", knn_accuracy))
+print(paste("Precision:", precision_knn))
+print(paste("Recall:", recall_knn))
+print(paste("F1-score:", f1_score_knn))
+```
+
+```{r}
+accuracy_data <- data.frame(
+  "Model" = c("Logistic Regression", "Naive Bayes", "Ranger", "KNN"),
+  "Accuracy" = c(logit_accuracy, nb_accuracy, ranger_accuracy, knn_accuracy)
+)
+ggplot(accuracy_data, aes(x = Model, y = Accuracy, fill = Model)) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.5) +
+  labs(title = "Model Accuracy", x = "Model", y = "Accuracy") +
+  theme_minimal()
+```
+
+```{r}
+precision_data <- data.frame(
+  "Model" = c("Logistic Regression", "Naive Bayes", "Ranger", "KNN"),
+  "Precision" = c(precision_logit, precision_nb, precision_ranger, precision_knn)
+)
+
+ggplot(precision_data, aes(x = Model, y = Precision, fill = Model)) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.5) +
+  labs(title = "Model Precision", x = "Model", y = "Precision") +
+  theme_minimal()
+
+```
+
+```{r}
+recall_data <- data.frame(
+  "Model" = c("Logistic Regression", "Naive Bayes", "Ranger", "KNN"),
+  "Recall" = c(recall_logit, recall_nb, recall_ranger, recall_knn)
+)
+ggplot(recall_data, aes(x = Model, y = Recall, fill = Model)) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.5) +
+  labs(title = "Model Recall", x = "Model", y = "Recall") +
+  theme_minimal()
+```
+
+```{r}
+f1_score_data <- data.frame(
+  "Model" = c("Logistic Regression", "Naive Bayes", "Ranger", "KNN"),
+  "f1_score" = c(f1_score_logit, f1_score_nb, f1_score_ranger, f1_score_knn)
+)
+ggplot(f1_score_data, aes(x = Model, y = f1_score, fill = Model)) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.5) +
+  labs(title = "Model F1-Score", x = "Model", y = "F1-Score") +
+  theme_minimal()
+```
