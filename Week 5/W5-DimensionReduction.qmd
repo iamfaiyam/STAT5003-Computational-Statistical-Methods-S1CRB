@@ -1,0 +1,125 @@
+---
+title: "W5-DimensionReduction"
+format: html
+editor: visual
+---
+
+## Libraries to load
+
+```{r tree-package}
+library(ggplot2) 
+library(dslabs)
+library(Rtsne)
+library(gridExtra)
+```
+
+## US Arrests
+
+### PCA
+
+Let's firstly explore PCA with the US Arrests data. This dataset, along with the function for PCA `prcomp()`, should be included in your base R installation.
+
+```{r, warning=FALSE, message=FALSE}
+data("USArrests")
+```
+
+Initial visualisations:
+
+```{r, warning=FALSE, message=FALSE}
+pairs(USArrests, pch = 16, cex = 0.5, panel = panel.smooth) 
+boxplot(USArrests)
+```
+
+You can see the variables have different scales!
+
+Try PCA without scaling.
+
+```{r, warning=FALSE, message=FALSE}
+usarrest.pca <- prcomp(USArrests)
+biplot(usarrest.pca, cex = 0.5)
+```
+
+Now do PCA again but scale the variable so they have mean of 0 and sd of 1.
+
+```{r, warning=FALSE, message=FALSE}
+usarrest.pca.scale <- prcomp(USArrests, scale = TRUE)
+usarrest.pca.scale
+biplot(usarrest.pca.scale, cex = 0.5) 
+```
+
+Extract the variance explained
+
+```{r}
+usarrest.pca.scale$sdev
+tot.var <- sum(usarrest.pca.scale$sdev^2)
+var.explained <- data.frame(pc = seq(1:4), var.explained = usarrest.pca.scale$sdev^2/tot.var )
+ggplot(var.explained, aes(x = pc, y = var.explained)) + 
+  geom_bar(stat = "identity") + 
+  labs(title = "US Arrest") 
+screeplot(usarrest.pca.scale)
+```
+
+## Birds dataset
+
+The next dataset we will be exploring is a dataset that contains bone measures and living habits of birds provided by Dr. D. Liu of Beijing Museum of Natural History. The data contains ecological categories of the birds and measures of length and diameter of five bones from the bird's skeleton. The dataset was downloaded from Kaggle.
+
+There are 10 measurements of different bones (see image below) and the birds come from six ecological classes:
+
+-   Swimming Birds (S)
+
+-   Wading Birds (W)
+
+-   Terrestrial Birds (T)
+
+-   Raptors (T)
+
+-   Scansorial Birds (P)
+
+-   Singing Birds (S0)
+
+```{r birds}
+birds <- read.csv("bird.csv", header = TRUE) 
+str(birds) 
+dim(birds)
+pairs(birds[, -c(1, 12)])
+boxplot(birds[, -c(1, 12)])
+```
+
+### PCA
+
+```{r}
+birds.pca <- prcomp(birds[,2:11], scale = TRUE)
+
+birds.df <- data.frame(PC1 = birds.pca$x[, 1], 
+                       PC2 = birds.pca$x[, 2], 
+                       PC3 = birds.pca$x[, 3],
+                       labels = as.factor(birds$type))
+ggplot(birds.df, aes(PC1, PC2, col = labels)) + 
+  geom_point()
+```
+
+### t-SNE
+
+Let's now try to visualise the dataset with t-SNE. You can see if we make the perplexity parameter smaller, the size of the cluster appear to be smaller.
+
+```{r}
+birds.Rtnse <- Rtsne::Rtsne(birds[,2:11])
+birds.rtsne.df <- data.frame(dim1 = birds.Rtnse$Y[,1],
+                             dim2 = birds.Rtnse$Y[,2], 
+                             labels = as.factor(birds$type))
+```
+
+```{r}
+birds.Rtsne.p5 <- Rtsne::Rtsne(birds[,2:11], perplexity = 5)
+birds.rtsne.df.p5 <- data.frame(dim1 = birds.Rtsne.p5$Y[,1], 
+                                dim2 = birds.Rtsne.p5$Y[,2], 
+                                labels = as.factor(birds$type))
+
+p1 <- ggplot(birds.rtsne.df, aes(dim1, dim2, col = labels)) + 
+  geom_plot() + 
+  labs(title = "Perplexity = 30")
+p2 <- ggplot(birds.rtsne.df.p5, aes(dim1, dim2, col = labels)) + 
+  geom_plot() + 
+  labs(title = "Perplexity = 5")
+gridExtra::grid.arrange(p1, p2, ncol = 2) 
+```

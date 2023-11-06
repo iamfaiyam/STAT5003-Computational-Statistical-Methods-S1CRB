@@ -1,0 +1,118 @@
+---
+title: "W3-Ensemble Tree Methods"
+format: pdf
+editor: visual
+---
+
+## Learning Objectives
+
+-   Use ensemble methods with bootstrap (manually and via `ranger`)
+
+-   Use ensemble methods via boosting with `gbm`.
+
+## Libraries to load
+
+```{r load-packages}
+#| warning: false
+#| message: false
+library(ranger) 
+library(gbm) 
+library(ISLR) # dataset for analysis
+library(caret) 
+library(tree)
+```
+
+## Tree ensembles
+
+### Implement bagging ourselves
+
+```{r, warning = FALSE}
+set.seed (123)
+Hitters <- Hitters[!is.na(Hitters [["Salary"]]), ]
+salary.cat <- cut(Hitters[["Salary"]], breaks = c(0, 500, 5000))
+Hitters[["salary.cat"]] <- salary.cat
+Hitters[["binary.salary"]] <- factor (salary.cat == "(0,500]",
+                                      labels = c(">500k", "<=500k")) # labels has to be on new line
+with(Hitters, table (binary.salary)) 
+with (Hitters, table (salary.cat))
+inTrain <- createDataPartition (Hitters [["salary.cat"]], p = 0.5) [[1]]
+hit.train <- Hitters[inTrain,]
+hit.test <- Hitters[-inTrain,]
+```
+
+```{r}
+# single binary tree classification 
+tree.model <- tree(binary.salary ~ . - Salary - salary.cat, data = hit.train) 
+tree.preds <- predict(tree.model, newdata = hit.test)
+tree.classified <- levels(Hitters[["binary.salary"]])[apply(tree.preds, 1, which.max)]
+tree.accuracy <- mean(tree.classified == hit.test[["binary.salary"]])
+tree.accuracy
+```
+
+```{r}
+# create bagging (a type of ensemble) 
+n.train <- nrow(hit.train) 
+bagging.predictions <- vapply(1:100, function(x) {
+  idx <- sample(x = 1:n.train, size = n.train, replace = TRUE) 
+  tree.model <- tree(binary.salary ~ . - Salary - salary.cat,
+                     data = hit.train[idx, ])
+  predict(tree.model, newdata = hit.test)[,"<=500k"]
+}, numeric(nrow(hit.test)))
+
+bagging.classified <- ifelse(rowMeans(bagging.predictions) > 0.5, "<=500k", ">500k")
+bagging.accuracy <- mean(bagging.classified == hit.test[["binary.salary"]])
+bagging.accuracy
+```
+
+### Bagging (use ranger package) 
+
+```{r}
+# Random forest will reduce into bagging if all features are used at every split 
+# Here we testing bagging by random forest package and allowing the use of all features
+library(ranger)
+set.seed(1)
+
+# Bagging for classification 
+dim(Hitters)
+
+names(Hitters)
+bag.hit <- ranger(binary.salary ~ . - Salary - salary.cat, data = hit.train, 
+                  mtry = 19)
+bag.preds <- predict(bag.hit, data = hit.test)$predictions
+mean(bag.preds == hit.test$binary.salary)
+```
+
+### Random Forest
+
+```{r ranger-random-forest}
+set.seed(1)
+data("Boston", package = "MASS")
+# Random forest for classification 
+dim(iris) 
+bag.iris <- ranger(Species ~ ., data = iris, mtry = 1)
+print(bag.iris) 
+
+# Random forest for regression 
+dim(Boston) 
+rf.boston <- ranger(medv~., data = Boston, subset = train, mtry = 6) 
+```
+
+### Boosting
+
+```{r}
+# regression 
+data("Boston", package = "MASS")
+set.seed(1)
+train <- sample(1:nrow(Boston), nrow(Boston)/2)
+
+boost.boston <- gbm(medv ~ ., data = Boston[train, ], 
+                    distribution = "gaussian", n.trees = 5000)
+
+# classification 
+adaBoost.model <- gbm(as.numeric(binary.salary) - 1 ~ . - Salary - salary.cat,
+                      data = hit.train, distribution = "adaboost", n.trees = 5000)
+
+preds <- predict(adaBoost.model, newdata = hit.test, 
+                 n.trees = 5000, type = "response")
+mean(ifelse(preds > 0.5, "<=500k", ">500k") == hit.test[["binary.salary"]])
+```

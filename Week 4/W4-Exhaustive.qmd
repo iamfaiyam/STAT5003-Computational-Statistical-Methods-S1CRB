@@ -1,0 +1,98 @@
+---
+title: "W4-Exhaustive Searches"
+format: html
+editor: visual
+---
+
+## Libraries to load
+
+```{r, warning=FALSE, message=FALSE}
+library(ISLR)
+library(sjPlot)
+library(leaps)
+library(lmSubsets)
+```
+
+## Credit data
+
+Goal: predict the average credit card balance given the explanatory variables
+
+```{r}
+# ?ISLR::Credit
+str(Credit)
+```
+
+### Using the `regsubsets()` function
+
+```{r}
+exhaustive.credit <- leaps::regsubsets(
+  Balance ~. -ID, 
+  data = Credit, 
+  method = "exhaustive", 
+  nvmax = 11)
+summary.exhaustive.credit <- summary(exhaustive.credit)
+summary.exhaustive.credit
+str(summary.exhaustive.credit)
+```
+
+```{r regsubsets-forward-Cp}
+min.cp <- which.min(summary.exhaustive.credit$cp)
+plot(summary.exhaustive.credit$cp, type = 'l', 
+     ylab = "Mallows C_p measure", 
+     xlab = "Number of features")
+points(summary.exhaustive.credit$cp)
+points(min.cp, summary.exhaustive.credit$cp[min.cp], pch = 4, col = "blue", cex = 2)
+
+```
+
+#### BIC
+
+```{r regsubsets-forward-BIC}
+min.bic <- which.min(summary.exhaustive.credit$bic)
+plot(summary.exhaustive.credit$bic, type = 'l', 
+     ylab = "BIC", 
+     xlab = "Number of features")
+points(summary.exhaustive.credit$bic)
+points(min.bic, summary.exhaustive.credit$bic[min.bic], pch = 4, col = "blue", cex = 2)
+
+```
+
+#### Adjusted R2
+
+```{r regsubsets-forward-}
+min.adjr2 <- which.max(summary.exhaustive.credit$adjr2)
+plot(summary.exhaustive.credit$adjr2, type = 'l', 
+     ylab = "Adjusted R2", 
+     xlab = "Number of features")
+points(summary.exhaustive.credit$adjr2)
+points(min.adjr2, summary.exhaustive.credit$adjr2[min.adjr2], pch = 4, col = "blue", cex = 2)
+
+
+```
+
+### Using the `lmSubsets()` function
+
+```{r}
+exhaustive.out = lmSubsets::lmSubsets(
+  Balance ~ . -ID, 
+  data = Credit, nbest = 1, 
+  nmax = NULL,
+  metod = "exhaustive")
+plot(exhaustive.out, penalty = "BIC")
+plot(exhaustive.out, penalty = "AIC")
+```
+
+```{r}
+exhst.cp = lmSelect(exhaustive.out, penalty = "AIC")
+exhst.bic = lmSelect(exhaustive.out, penalty = "BIC")
+```
+
+Compare the exhaustive Cp with exhaustive BIC:
+
+```{r}
+sjPlot::tab_model(
+  refit(exhst.cp), refit(exhst.bic), 
+  show.ci = FALSE, show.p = FALSE,
+  dv.labels = c("Exhaustive Cp", "Exhaustive BIC")
+)
+```

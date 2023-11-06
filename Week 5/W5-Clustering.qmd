@@ -1,0 +1,213 @@
+---
+title: "W5-Clustering"
+format: html
+editor: visual
+---
+
+## Libraries to load
+
+```{r, warning=FALSE, message=FALSE}
+library(dslabs)
+library(ggplot2) 
+library(gridExtra)
+```
+
+## Gene expression dataset
+
+There is a dataset in the`dslabs` package called `tissue_gene_expression`. It contains gene expression data on 7 tissues.
+
+```{r, warning=FALSE, message=FALSE}
+data("tissue_gene_expression", package = "dslabs")
+str(tissue_gene_expression) 
+# extract expression matrix
+gene.expr <- tissue_gene_expression[[1]]
+# obtain the list of tissues
+tissue.labs <- tissue_gene_expression[[2]]
+length(tissue.labs)
+dim(gene.expr)
+```
+
+### Hierarchical clustering analysis
+
+Generate a distance matrix
+
+```{r}
+data.dist = dist(gene.expr)
+str(data.dist)
+```
+
+Perform and visualise hierarchical clustering on the distance matrix
+
+```{r, warning=FALSE, message=FALSE}
+plot(hclust(data.dist), labels = tissue.labs, 
+     main = "Complete linkage", xlab = "", sub = "", ylab = "", cex = 0.8) 
+plot(hclust(data.dist, method = "average"), labels = tissue.labs, 
+     main = "Average Linkage", xlab = "", sub = "", ylab = "", cex = 0.8)
+plot(hclust(data.dist, method = "single"), labels = tissue.labs, main = "Single Linkage", xlab = "", sub = "", ylab = "", cex = 0.8)
+
+```
+
+How to "cut" a tree?
+
+```{r}
+hc.out = hclust(data.dist) 
+hc.out
+```
+
+```{r}
+plot(hc.out, labels = tissue.labs, cex = 0.5) 
+abline(h = 23, col = "red")
+```
+
+```{r}
+hc.clusters = cutree(hc.out, 7) 
+table(hc.clusters, tissue.labs)
+```
+
+## Iris data
+
+### K-means clustering
+
+```{r}
+dim(iris) 
+head(iris) 
+table(iris$Species)
+```
+
+```{r}
+# plot original data 
+speciesColors = sapply(as.character(iris$Species), switch, 
+                       setosa = "red", versicolor = "blue", virginica = "green")
+data.mat = iris[ c("Petal.Length", "Sepal.Width", "Species") ]
+# data.mat <- cbind(iris$Petal.Length, iris$Sepal.Width, iris$Species) 
+# colnames(data.mat) <- c("Petal Length", "Sepal.Width", "Species")
+plot(data.mat[,-3], col = speciesColors, 
+     main = "original data with class information")
+```
+
+```{r}
+# apply k-means with k=2
+set.seed(1) 
+km.out2 <- kmeans(data.mat[, -3], centers = 2) 
+plot(data.mat[, -3], col = (km.out2$cluster + 1), 
+     main = "k-means clustering results with k = 2", 
+     pch = 20, cex = 2)
+```
+
+```{r}
+# apply k-means with k=3
+set.seed(1) 
+km.out3 <- kmeans(data.mat[, -3], centers = 3) 
+plot(data.mat[, -3], col = (km.out3$cluster + 1), 
+     main = "k-means clustering results with k = 3", 
+     pch = 20, cex = 2)
+```
+
+```{r}
+# apply k-means with k=4
+set.seed(1) 
+km.out4 <- kmeans(data.mat[, -3], centers = 4) 
+plot(data.mat[, -3], col = (km.out4$cluster + 1), 
+     main = "k-means clustering results with k = 4", 
+     pch = 20, cex = 2)
+```
+
+### Cluster statistics
+
+```{r}
+# what is the output from k-means clustering? 
+km.out2
+```
+
+Finding the "elbow" in the total within sum of squares:
+
+```{r}
+km.out1 <- kmeans(data.mat[, -3], centers = 1) 
+km.out5 <- kmeans(data.mat[, -3], centers = 5) 
+k = c(1, 2, 3, 4, 5) 
+wss.total = c(km.out1$tot.withinss, km.out2$tot.withinss, 
+              km.out3$tot.withinss, km.out4$tot.withinss, 
+              km.out5$tot.withinss)
+plot(wss.total ~ k) 
+lines(wss.total ~ k) 
+```
+
+## Birds dataset
+
+The next dataset we will be exploring is a dataset that contains bone measures and living habits of birds provided by Dr. D. Liu of Beijing Museum of Natural History. The data contains ecological categories of the birds and measures of length and diameter of five bones from the bird's skeleton. The dataset was downloaded from Kaggle.
+
+There are 10 measurements of different bones (see image below) and the birds come from six ecological classes:
+
+-   Swimming Birds (S)
+
+-   Wading Birds (W)
+
+-   Terrestrial Birds (T)
+
+-   Raptors (T)
+
+-   Scansorial Birds (P)
+
+-   Singing Birds (S0
+
+```{r birds}
+birds <- read.csv("bird.csv", header = TRUE) 
+str(birds) 
+boxplot(birds[,2:11])
+```
+
+### k-means directly
+
+```{r}
+set.seed(1)
+birds.km <- kmeans(scale(birds[,2:11]), centers = 6) 
+table(birds.km$cluster, birds$type)
+```
+
+### Dimension reduction and k-means
+
+We can use PCA or t-SNE as a preprocessing step before performing clustering.
+
+PCA
+
+```{r}
+birds.pca <- prcomp(birds[,2:11], scale = TRUE) 
+birds.df <- data.frame(PC1 = birds.pca$x[,1], 
+                       PC2 = birds.pca$x[,2], 
+                       PC3 = birds.pca$x[,3], 
+                       labels = as.factor(birds$type))
+ggplot(birds.df, aes(PC1, PC2, col = labels)) + geom_point()
+```
+
+t-SNE
+
+```{r}
+set.seed(1) 
+birds.Rtsne.p5 <- Rtsne::Rtsne(birds[,2:11], perplexity = 5) 
+birds.Rtsne.p5 <- data.frame(dim1 = birds.Rtsne.p5$Y[,1], 
+                             dim2 = birds.Rtsne.p5$Y[,2], 
+                             labels = as.factor(birds$type))
+ggplot(birds.Rtsne.p5, aes(dim1, dim2, col = labels)) + 
+  geom_point() + 
+  labs(title = "Perplexity = 5")
+```
+
+```{r}
+birds.pca2.km <- kmeans(scale(birds.pca$x[,1:2]), centers = 6) 
+birds.tsne.km <- kmeans(birds.rtsne.df.p5[,1:2], centers = 6) 
+birds.df$kmeans.pca2 <- as.factor(birds.pca2.km$cluster) 
+birds.df$kmeans.tsne <- as.factor(birds.tsne.km$cluster) 
+birds.df$kmeansall <- as.factor(birds.km$cluster) 
+birds.df$dim1 <- birds.rtsne.df.p5$dim1
+birds.df$dim2 <- birds.rtsne.df.p5$dim2 
+
+# Let's make the plots again on the tSNE space
+p1 <- ggplot(birds.df, aes(PC1, PC2, col = labels)) + 
+  geom_point() + ggtitle("Original data")
+p2 <- ggplot(birds.df, aes(PC1, PC2, col = kmeans.pca2)) + 
+  geom_point() + ggtitle("K-means using 2 PC")
+p3 <- ggplot(birds.df, aes(PC1, PC2, col = kmeansall)) + 
+  geom_point() + ggtitle("K-means using original data") 
+gridExtra::grid.arrange(p1, p2, p3, ncol = 2) 
+# I can't be asked doing p4, p5 and p6...
+```

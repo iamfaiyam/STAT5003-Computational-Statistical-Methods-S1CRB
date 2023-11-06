@@ -1,0 +1,103 @@
+---
+title: "Lab Week 3"
+format:
+  html:
+    code-fold: true
+    code-line-numbers: true
+    number-sections: true
+    number-depth: 3
+    code-tools: true
+    embed-resources: true
+---
+
+```{r setup}
+#| message: false
+library(tidyverse)
+```
+
+We will be using the same data set as lecture example - the `Sonar` data set and it is included as part of the `mlbench` package. To load the data, do the following:
+
+```{r load}
+data(Sonar, package = "mlbench")
+```
+
+# Load Data
+
+Load the `winequality-data.csv` data from the course Canvas website. Note that the last column is the ID of each sample and should be removed from further analysis.
+
+# Tree Implementation
+
+Split the dataset into 50% training and 50% testing.
+
+## Build decision tree model
+
+Build a decision tree model to predict wine $quality$ using the 11 other features using the `tree()` function in the `tree` package and visualize the results
+
+## Assess decision tree model
+
+Use the single decision tree model to predict wine quality in the test set and calculate the residual sum of squares error (RSS).
+
+# Random forest implementation
+
+Use the `randomForest` or `ranger` package for this question.
+
+## Fit Random Forest
+
+Implement a random forest classifier trained on the training data from question 2 and use it to predict the test data.
+
+## Assess random forest
+
+Calculate the RSS on the test set prediction and compare it to the result of the single decision tree from question 2.
+
+## Calibration
+
+There are two parameters to tune in the Random Forest model --- number of trees to use (`ntree` in `randomForest` and `num.trees` in `ranger`) and the number of variables to consider at each split (`mtry` in both). Find the `ntree` value at which adding more trees does not improve performance.
+
+# Optional Boosting
+
+## `gbm` fitting
+
+Use the `gbm` package for this question. Implement a boosted tree model trained on the training data from question 2 and use it to predict the test data. What is the RSS on the test set prediction and how does it compare to the random forest model? Again, try different number of trees.
+
+## `xgboost` fitting
+
+Use the `xgboost` package for this question. Implement a boosted tree model trained on the training data from question 2 and use it to predict the test data.
+Use `max_depth = 2` and plot the RSS for `nrounds = 300, 500, 1000, 1500` and `eta = 0.01, 0.02, 0.03`. Check that a small value for eta is required for larger value of nrounds.
+
+# Recommended extra: Tuning Boosted models
+
+There are a number of parameters that can be tuned in the GBM and the XGBoost models. The `caret` package provides an easy way to tune parameters. See this guide: https://topepo.github.io/caret/model-training-and-tuning.html
+
+Tune the parameters in your models using the `caret` package.
+# Construct a 10-fold cross validation
+
+Design a 10-fold cross-validation procedure to evaluate a kNN classification model (with $k=5$) accuracy. Use `class::knn()` and NOT the `caret` package (but you can use the caret package to create validation cross fold partitions.)
+
+## Create a 10 fold split
+
+Create a 10-fold split and partition up the data into the appropriate training, test splits to be used in the `knn` call
+
+## Compute the predicted values on each test fold
+
+Using your training test split over the 10 folds. Fit the `knn` models and extract the observed and predicted class labels for each of the 10 folds. (_Hint_: Write a function that does this prediction step for later use, ideally it should have arguments for the training and test data and perhaps the number of nearest neighbours)
+
+## Compute the performance metrics
+
+Using the predicted and observed values in each case, calculate the sensitivity, specificity, accuracy and $F_1$ score for the kNN classifier. You may use the `caret::confusionMatrix` or an equivalent helper function from another package if you wish. Look at the performance and identify if it has good/bad performance in the metrics.
+
+# Extend to write your own repeated cross validation
+
+Use your code above to conduct a repeated cross validation of say `m = 100` runs (or however many you wish given the speed of your code or computation power of your hardware) to construct a sample of CV performance estimates for Accuracy, Sensitivity, Specificity and the F1 scores. Visualize your estimates. You may use the `caret::createMultiFolds` or create your own if you wish. The `createMultiFolds` function returns the data in a slightly different format (see the documentation at `? createFolds`)
+
+# Extend to write your own nested cross validation
+
+Consider that in reality the `knn` model will be tuned before being used for classification. Instead of picking a single choice of `k`. Conduct a nested 10 fold cross validation which does a grid search over `k = 2:10` and selects the `k` that produces the best $F_1$ scores. Say $K = 10$ outer folds and $K_{inner} = 5$ folds within each outer training fold. (_Hint_ : use `caret::F_meas` to compute the $F_1$ score).
+
+Recall, the nested Cross validation will require the following to occur
+
+1. Within each training set in the outer 10-fold split. the training data is split again into another inner training and test set (here the test set is usually called the validation set)
+2. For each hyperparameter setting (`k = 2:10`) fit the kNN model on the inner training data and assess on the validation data.
+3. Average the performance metric across all inner validation folds for each hyperparameter choice (should get a measure of each value of `k = 2:10` here)
+4. Choose the value of `k` that has the best performing metric value.
+5. Use that value of `k` as the in the hyper-parameter in outer training, test split.
+6. Compute the performance metrics across all test folds using the tuned value of $k$ each time.

@@ -1,0 +1,89 @@
+---
+title: "OSTA5003 Week 1 Homework Solutions"
+format: 
+    html: 
+        embed-resources: true
+---
+
+## Three suburb housing Data
+
+Use the filtered data from the lab
+
+```{r melbdat}
+smaller.dat <- read.csv("Melbourne_housing_FULL.csv") |>
+  subset(Suburb %in% c("Brunswick", "Craigieburn", "Hawthorn"),
+         select = c("Price", "BuildingArea", "Suburb")) |> na.omit()
+head(smaller.dat)
+```
+
+Fit the regression models to this filtered data,
+
+a. `Price ~ BuildingArea` ($\leadsto \widehat Y = \beta_0 + \beta_1 \cdot \text{BuildingArea}$)
+a. `Price ~ BuildingArea + Suburb` 
+
+1. Compare the goodness of fit of the model and explain which model seems better using the metric. (Hint: Use the adjusted R-square)
+
+```{r model1}
+model1 <- lm(Price ~ BuildingArea, data = smaller.dat) 
+summary(model1) 
+```
+```{r model2}
+model2 <- lm(Price ~ BuildingArea + Suburb, data = smaller.dat) 
+summary(model2)
+```
+
+Comparing the adjusted R-squared values for the two models, we can see that the second model with Price ~ BuildingArea + Suburb has a higher adjusted R-squared value (0.4208) than the first model with Price ~ BuildingArea (0.1705). This means that the second model explains more of the variability in the data and provides a better fit than the first model. Therefore, Price ~ BuildingArea + Suburb seems to be a better model than Price ~ BuildingArea for this data.
+
+2. Visualize the data and regression fits on a scatter plot. Hint: You can visualize the `Suburb` information by colour the points differently for each suburb (using the `col` argument and integer coding if using base graphics, if using `tidyverse` you can use the `colour` argument in the aesthetic mapping)
+
+```{r Visualisations of model1 and model2}
+library(ggplot2)
+
+ggplot(smaller.dat, aes(x = BuildingArea, y = Price)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE) + 
+  ggtitle("Price vs BuildingArea") + 
+  labs(x = "BuildingArea", y = "Price")
+
+ggplot(smaller.dat, aes(x = BuildingArea, y = Price, color = Suburb)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE) + 
+  ggtitle("Price vs Building (with Suburb)") + 
+  labs(x = "BuildingArea", y = "Price")
+```
+
+3. Compute the LS criterion for both models. To do this you can use the code below to compute the distance of the points in the data away from the line ($y$ denote the points and $\widehat y$ denote the regression predictions from the features in the data)
+
+```{r}
+LScrit <- function(y, yhat) {
+  sum((y - yhat)^2)
+}
+```
+
+* i.e. `y` is the `Price` variable and `yhat` are the predictions from the line. Can be predicted using `predict.lm` in `R` for the least squares regression line.
+
+```{r LS criterion for model1 and model2}
+# Predicted values
+yhat1 <- predict(model1) 
+yhat2 <- predict(model2) 
+
+# Compute the RSS 
+Rss1 <- LScrit(smaller.dat$Price, yhat1)
+Rss2 <- LScrit(smaller.dat$Price, yhat2)
+
+# Results
+cat("LS criterion for Price ~ BuildingArea:", Rss1, "\n")
+cat("LS criterion for Price ~ BuildingArea + Suburb:", Rss2, "\n")
+```
+
+4. For the simple regression, show that another candidate line has a larger `LScrit` value than the simple least squares regression line.
+
+To show that another candidate line has a larger LSCrit, we need to calculate the residual sum of squares (RSS) for both lines and compare them. Since we are comparing it to the simple least squares regression line, we can let $\beta_0$ = 100000 and $\beta_1$ = 5000: 
+
+```{r Candidate line vs SLR}
+yhat_ <- 100000 + 5000*smaller.dat$BuildingArea
+Rss <- LScrit(smaller.dat$Price, yhat_)
+Rss
+```
+
+Thus we get 2.530199e+14 for RSS which is considerably larger than the LS criterion for the aforementioned model in question 3. 

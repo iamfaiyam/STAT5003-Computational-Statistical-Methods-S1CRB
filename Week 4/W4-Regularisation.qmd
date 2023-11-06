@@ -1,0 +1,155 @@
+---
+title: "W4-Regularisation"
+format: html
+editor: visual
+---
+
+## Libraries to load
+
+```{r, warning=FALSE, message=FALSE}
+library(ISLR) 
+library(glmnet) 
+library(RColorBrewer)
+```
+
+## Ridge and LASSO regressions. 
+
+Ridge and lasso regression can be achieved using the `glmnet` package which computes both as part of the more general elastic net method. The elastic net includes both the ridge regression and lasso as special cases of the elastic net model. The choice of $\alpha = 1$ or $\alpha = 0$ will reduce the penalty term to the lasso penalty ($\ell_1$ penalty) or the ridge regression penalty ($\ell_2$ penalty).
+
+## Credit data
+
+Goal: predict the average credit card balance given the explanatory variables
+
+```{r}
+# ?ISLR::Credit
+str(Credit)
+```
+
+Create learning matrix `x` and regression response variable `y`
+
+```{r}
+x <- model.matrix(Balance ~ . - ID, data = Credit)[, -1]
+y <- Credit$Balance
+```
+
+Partition the data into training and test sets (50% each)
+
+```{r}
+set.seed(1)
+train <- sample(1:nrow(x), floor(nrow(x)/2))
+test <- -train
+y.test <- y[test]
+```
+
+### Ridge regression 
+
+set the range of lambda values (tuning parameter values) to be considered.
+
+```{r}
+grid <- 10^seq(6, -2, length = 100)
+
+# alpha is the elastic net mixing parameter with 0 correspond to Ridge regression and 1 correspond to Lasso and anything in between correspond to elastic net 
+ridge.mod <- glmnet(x[train, ], y[train], alpha = 0, lemba = grid, standardize = TRUE) 
+dim(coef(ridge.mod))
+plot(ridge.mod, xvar = "lambda", label = TRUE) 
+
+# Plot again with normalised coefficients
+feature.sd <- apply(x[train, ], 2, sd) 
+ridge.coef <- coef(ridge.mod)[-1, ] # Extract the coefficients without intercept
+
+ridge.coef.norm <- ridge.coef * feature.sd
+```
+
+```{r}
+cols <- colorRampPalette(RColorBrewer::brewer.pal(8, "Dark2"))(11)
+matplot(x = matrix(log10(grid), nrow = ncol(ridge.coef)), 
+        y = t(ridge.coef.norm), type = "l", 
+        ylim = range(ridge.coef.norm[, ncol(ridge.coef.norm)]), 
+        xlab = "log(lambda)", ylab = "standardised coef", 
+        col = cols) 
+legend("topright", legend = rownames(ridge.coef.norm)[1:7], col = cols[1:7], lty = 1:7)
+```
+
+#### Cross validation to $\lambda$
+
+We can use cross-validation to determine optimal lambda value. This is implemented through the `cv.glmnet()` function from the **glmnet** package.
+
+```{r}
+set.seed(1)
+cv.out <- cv.glmnet(x[train, ], y[train], alpha = 0)
+plot(cv.out)
+```
+
+```{r}
+bestlam <- cv.out$lambda.min
+log(bestlam)
+```
+
+We then predict on the test data using optimal lambda determined by CV
+
+```{r}
+ridge.pred <- predict(ridge.mod, s = bestlam, newx = x[test, ])
+# and compute the MSE
+mean((ridge.pred - y.test)^2)
+```
+
+### Lasso regression 
+
+Set = `alpha = 1` to get the lasso fit.
+
+```{r}
+lasso.mod <- glmnet(x[train, ], y[train], alpha = 1, lambda = grid) 
+dim(coef(lasso.mod))
+plot(lasso.mod, xvar = "lambda", label = TRUE) 
+```
+
+#### Cross validation to pick $\lambda$
+
+Using cross-validation for lasso to find the best lambda (based on "mean cross-validated error")
+
+```{r}
+set.seed(1) 
+cv.lasso <- cv.glmnet(x[train, ], y[train], alpha = 1) 
+plot(cv.lasso)
+```
+
+```{r}
+bestlam <- cv.lasso$lambda.min
+bestlam
+```
+
+Feature selection using the best lambda (as estimated by CV):
+
+```{r}
+lasso.coef <- predict(lasso.mod, type = "coefficients", s = bestlam) 
+lasso.coef
+```
+
+Predict on test set using optimal lambda value estimated by CV
+
+```{r}
+lasso.pred <- predict(lasso.mod, s = bestlam, newx = x[test, ])
+# compute MSE
+mean((lasso.pred - y.test)^2)
+```
+
+There's a rule of thumb that says we should consider the largest value of lambda such that error is within 1 standard error of the minimum (second dashed lined in the plots).
+
+```{r}
+lam1se <- cv.lasso$lambda.1se
+```
+
+Feature selection using the best lambda (as estimated by CV):
+
+```{r}
+lasso.coef.1se <- predict(lasso.mod, type = "coefficients", s = lam1se) 
+lasso.coef.1se
+```
+
+Predict on test set using optimal lambda value estimated by CV
+
+```{r}
+lasso.pred.1se <- predict(lasso.mod, s = lam1se, newx = x[test, ])
+# compute MSE
+mean(lasso.pred.1se)
+```

@@ -1,0 +1,103 @@
+---
+title: "Lab Week 6"
+format:
+  html:
+    code-fold: true
+    code-tools: true
+    embed-resources: true
+---
+
+```{r setup}
+#| message: false
+library(tidyverse)
+library(mice)
+```
+
+This week, a simple dataset will be explored with and without missing data and its effect on modelling. To begin download the `skin-cancer.csv` file.
+
+# Simple regression with and without missingness {.tabset .tabset-fade .tabset-pills}
+
+Consider this older data set that shows the mortality rates (number of deaths per 10 million people) skin cancer for some US states against the latitude of the state. The data is available in `skin-cancer.csv` on Canvas.
+
+```{r load}
+full.data <- read.csv("skin-cancer.csv", header = TRUE)
+```
+
+## Standard Simple regression without missingness
+
+Conduct a simple linear regression with the Mortality rates as the response and Latitude as the predictor. Plot the data along with the regression and interpret the regression output.
+
+```{r}
+full_model <- lm(Mort ~ Lat, data = full.data)
+plot(Mort ~ Lat, data = full.data, ylab = "Mortality", xlab = "Latitude")
+abline(full_model)
+summary(full_model)
+```
+Fitted model is $\widehat{Mort} = 389 - 5.9776 \cdot Lat$
+
+## Simulate missingness in the latitudes
+
+Simulate half the values in the Latitude feature to be missing at random values. (i.e. replace half the elements with missing `NA` values). Note the assignment of missing values to be is random but not completely at random. That is, the chance that Latitude is missing should depend on Mortality. A good convenient function for this purpose is available in `mice::ampute`. The return object of this function will contain the data with missingness in the element `amp`. E.g. if you assigned the output of the `mice::ampute` to an object called `output`, the data with missing values will be available in `output$amp`. We'll call this the amputed data.
+
+```{r}
+amputed_data <- ampute(full.data, prop = 0.9, patterns = data.frame(Lat = 1, Mor = 0))
+str(amputed_data)
+# Take the counts and map to the proportion (average0 
+colMeans(is.na(amputed_data$amp))
+# Let's plot the data and visualise which data points were amputed. 
+plot(Mort ~ Lat, data = full.data, ylab = "Mortality", xlab = "Latitude")
+# Method 1:
+amp <- amputed_data[["amp"]]
+with(amputed_data$amp, points(Lat, Mort, col = "red"))
+
+```
+
+
+## Simple regression on the missing data as the response
+
+Conduct a simple linear regression now on the _amputed_ data but instead regressing Latitude on Mortality. That is, do a regression where Latitude is the response and Mortality is the predictor but using the amputed data where some Latitude cases are missing. (Note that `R` will automatically remove missing values from the model when using `lm`)
+
+```{r}
+# Can fit another lm, with Latitude as the response and Mortality as the predictor 
+# fill in (impute) the missing values 
+missing_lat_model <- lm(Lat ~ Mort, data = amp)
+# Use predict.lm to predict the missing latitudes
+missing_latitudes <- is.na(amp[["Lat"]])
+newdat <- amp[missing_latitudes, ]
+predicted_latitudes <- predict(missing_lat_model, newdata = newdat)
+imputed_dat <- amp
+imputed_dat[missing_latitudes, 2] <- predicted_latitudes
+imputed_dat |> head()
+```
+
+
+## Original with missingness complete-case regression
+
+Conduct a complete-case regression on the amputed data with Mortality as the response and Latitude as the predictor and show that it is not consistent with the original regression using the full data.
+
+```{r}
+complete_model_on_amp <- lm(Mort ~ Lat, data = amp) 
+summary(complete_model_on_amp)
+# Plot this looking at full data and initial model using all data
+# against filtered data and complete case regression on amputed. 
+plot()
+```
+
+## Random imputation
+
+Randomly impute the missing Latitude observations. That is, predict the missing Latitudes using the output of section 1.3 using random imputation. That is, do the prediction from the linear model in 1.3 but randomly simluate some noise variables using the estimated variability from 1.3 too. Use these random imputed values to fill in the missing values in the amputed data. Call this new data.frame the imputed data. Then conduct the regression with Mortality as the response and Latitude as the predictor on the imputed dataset and compare your results with regression that used the the original complete data with no missingness. Compare the results of the imputed model to the full model without missingness.
+
+\[
+  Y = \beta_0 + \beta_1X + \varepsilon, \qquad \varepsilon \sim \mathcal N(0, \sigma^2).
+\]
+
+```{r}
+# Estimate the sigma (or sigma^2) from the simple linear regression on the amputed data. 
+sigma <- 
+# plug in to rnorm
+# n_imp <- the number of imputed values
+unexplained_variation <- rnorm() # n = n_imp, sd = sigma_estimate above. 
+
+```
+
+

@@ -1,0 +1,250 @@
+---
+title: "Lab Week 5"
+format:
+  html:
+    code-fold: true
+    code-line-numbers: true
+    number-sections: true
+    number-depth: 3
+    code-tools: true
+    embed-resources: true
+---
+
+```{r setup}
+#| message: false
+library(tidyverse)
+```
+
+## Preparation and assumed knowledge {-}
+
+- High dimensional viz content in Module 4.
+- Listen to the Week 4 lecture pre-recording.
+- Data files
+    - `movielens_top40.csv` from Canvas
+    - `author_count.csv` from Canvas
+
+## Aims {-}
+- Explore decompositions of data using
+    - different PCA calibrations
+    - different clustering calibrations using $k$-means and hierarchical clustering.
+    - different representations of the data using $t$-SNE and MDS
+- Create a visualizations using PCA, t-SNE and basic MDS
+- Understand the difference between clustering algorithms and data visualization. 
+<br>
+</div>
+<br>
+
+# Movie ratings data {.tabset .tabset-fade .tabset-pills}
+
+We will be analysing the MovieLens dataset which contains movie ratings of 58,000 movies by 280,000 users. The entire dataset is too big for us to work with in this lab. It has been preprocessed with only a small subset of the data being considered. If you want to do more exploration yourself, the entire dataset can be downloaded [here](https://grouplens.org/datasets/movielens/latest/).  
+
+This part of the lab is based on a chapter in an online book by Rafael Irizarry. You can find it [here](https://rafalab.github.io/dsbook/). There are lots of examples in this book to show you how to use `R` for data science. 
+
+## Data processing [optional]
+
+This part of the code is for interested students only. You do not need this for the lab. 
+```{r preprocess, echo = TRUE, eval = FALSE, message = FALSE} 
+# Here is the code used to preprocess the data (taken from the Irizarry lab): 
+library(dplyr)
+library(tidyr)
+ratings <- read.csv("ml-latest-small/ratings.csv", header = TRUE)
+movies <- read.csv("ml-latest-small/movies.csv", header = TRUE)
+movielens <- left_join(movies, ratings)
+
+top <- movielens %>%
+  group_by(movieId) %>%
+  summarize(n=n(), title = first(title)) %>%
+  top_n(40, n) %>%
+  pull(movieId)
+
+x <- movielens %>% 
+  filter(movieId %in% top) %>%
+  group_by(userId) %>%
+  filter(n() >= 20) %>%
+  ungroup() %>% 
+  select(title, userId, rating) %>%
+  spread(userId, rating)
+x <- as.data.frame(x)
+rownames(x) <- x$title
+x$title <- NULL
+colnames(x) <- paste0("user_", colnames(x))
+
+
+write.table(x, row.names = TRUE, col.names = TRUE, sep = ",", file = "movielens_top40.csv")
+```
+
+## Data input and IDA
+
+Load the data `movielens_top40.csv` into `R`. It contains the top 40 movies with the most ratings and users who rated at least 20 out of the 40 movies.  Note, IDA refers to initial data analysis.  This is important component for all data analytics. 
+
+```{r load} 
+movielens <- read.csv("movielens_top40.csv", header = TRUE)
+dim(movielens) 
+print(movielens[1:5,1:5])
+head(movielens)
+
+range(movielens, na.rm = TRUE)
+```
+```{r}
+movie.dist <- dist(movielens)
+as.matrix(movie.dist) |> unname()
+as.matrix(movie.dist) |> unname() |> dim()
+```
+
+
+## Hierarchical clustering
+Given the large amount of variables, a natural high-dimensional visualization method is to cluster the movies based on different user ratings. We will look at how to do this in R. 
+
+1. Basic `hclust` usage
+
+Perform hierarchical clustering using the `hclust()` function and plot the resulting dendrogram. Try it with the `average`, `complete` and `single` methods. 
+
+```{r}
+hclust(movie.dist)
+complete_h_movie <- hclust(movie.dist) 
+plot(complete_h_movie, cex = 0.4)
+```
+
+```{r}
+avg_movie <- hclust(movie.dist, method = "average")
+plot(avg_movie, cex = 0.4)
+single_movie <- hclust(movie.dist, method = "single")
+plot(single_movie, cex = 0.4)
+```
+
+
+2. Form clusters in `hclust` 
+
+Use the `cutree()` function on the output of `hclust()` (with default settings) to separate the movie titles into four clusters. Can you extract the movies in cluster 1? We can also cut the tree by defining a height at which the tree should be cut. Can you find the value of `h` to cut the tree into four clusters?  
+
+```{r}
+cluster_groups <- cutree(avg_movie, k = 4) 
+movies_in_groups <- split(names(cluster_groups), cluster_groups)
+movies_in_groups[[1]]
+```
+
+3. You may have noticed that not every movie has a rating by every user. This makes sense since no one could have possibly watched every movie. One question you may ask is whether the clustering result is based on the actual number in the rating (of 1 to 5 stars), or whether it's clustering for the existence of a rating. Make a new dataset by replacing all missing ratings (ie. the NAs) with 0, and all the ratings (regardless of value) with 1. And then repeat the hierarchical clustering, but this time use the **Manhattan distance**. Use `cutree` to find 4 clusters and compare to your result in the previous question. 
+
+## Visulize the data [Optional]
+
+R also offers a number of packages that enable the user to visualize the data together with the clustering tree. We call these visualizations "heatmaps" of the data matrix. Download and install the package `ComplexHeatmap` using the code provided below and we will need to ensure the input is a matrix as expected by the function `Heatmap`. The arguments `row_names_gp` and `column_names_gp` enable us to reduce the font size.
+
+```
+# BiocManager::install("ComplexHeatmap")
+# BiocManager::install("shape")
+library(ComplexHeatmap)
+movielens_matrix <- as.matrix(movielens)  
+```
+
+```{r heatmap, message = FALSE}
+movielens_matrix <- as.matrix(movielens)  
+library(ComplexHeatmap)
+movielens_matrix <- as.matrix(movielens)  
+Heatmap(movielens_matrix, 
+        row_names_gp = gpar(fontsize = 7),
+        column_names_gp = gpar(fontsize = 7))
+```
+
+
+## Comparing trees [Optional]
+
+Suppose we like to compare the effect of two trees and visualize it. `R` has a package called `dendextend` that compare two dendrograms, it has the following key functions 
+- `untangle()`: finds alignment, 
+- `tanglegram()`: visualize the two dendrograms, 
+- `entanglement()`: computes the quality of the alignment.  
+
+
+```{r fig.width=10, message = FALSE}
+library(dendextend)
+d <- dist(movielens)
+# Create two dendrograms
+h_avg <- hclust(d, method = "average")
+h_single <- hclust(d, method = "single")
+dend1 <- as.dendrogram(h_avg)
+dend2 <- as.dendrogram(h_single)
+
+# Create a list to hold dendrograms
+dend_list <- dendlist(dend1, dend2)
+
+# Compare the two trees
+tanglegram(dend_list)
+```
+
+## $k$-means 
+
+1. Basic $k$-means usage
+
+Next, let's explore the `kmeans` method. Go back to the original movies dataset with ratings between 1 to 5 and missing values, let's now make a new dataset replacing all the NAs with 0 but keep the ratings. We are doing this because the `kmeans` function cannot handle missing values. In a later module, we will look at how to handle missing values. Use `kmeans` to cluster the movies into four clusters. How many movies are in each cluster? 
+
+```{r}
+clean_movies <- movielens
+# is.na(movielens) <- 0
+clean_movies[is.na(movielens)] <- 0 
+kmeans_output <- kmeans(clean_movies, centers = 4)
+kmeans_groups <- split(rownames(clean_movies), kmeans_output$cluster)
+```
+
+
+2. To visualize results from the `kmeans` clustering, use a dimension reduction technique such as PCA.
+
+```{r}
+pr_output <- prcomp(clean_movies, scale = TRUE)
+dat <- pr_output$x[, 1:2] |> as.data.frame()
+dat[["colour"]] <- factor(kmeans_output$cluster)
+library(ggplot2) 
+ggplot(dat, aes(x = PC1, y = PC2, colour = colour)) + geom_point()
+```
+
+
+## Cluster statistics
+
+Let's now look at the cluster statistics. 
+Can you plot the total within group sum of squares for k = 2, 3, 4, 5, 6 from `kmeans()`. The `tot.withinss` is part of the output value of `kmeans`. Repeat for between group sum of squares (`betweenss`). Do the plots hint at what is the best `k`? 
+
+# Author by word count {.tabset .tabset-fade .tabset-pills}
+
+The next dataset `author_count.csv` shows the counts of common words appearing in documents by four authors, Jane Austen, Jack London, William Shakespeare and John Milton. We like to investigate whether clustering based word characterstics is able to split the four authors apart. Here the first column shows the author, the remaining columns show the counts of each word.
+
+## Data input
+
+```{r}
+author.dat <- read.csv("author_count.csv", header = TRUE)
+numeric.dat <- author.dat[-1]
+authors <- factor(author.dat[[1]])
+```
+
+## PCA
+
+Compute the PCA and visualize the output.
+
+## t-SNE
+
+Compute and view the $t$-SNE plots for various perplexity levels for this dataset. Here you will need to consider adjusting the perplexity values. 
+
+```{r}
+library(Rtsne)
+tsne_out <- Rtsne(numeric.dat)
+dat <- data.frame(tsne_out$Y)
+dat[["colour"]] <- authors
+ggplot(dat, aes(x = X1, y = X2, colour = colour)) + geom_point()
+```
+
+## MDS
+
+1. Consider the MultiDimensionalScaling (MDS) technique to visualize the data. Compute different distance matrices using the `dist` function for the `author_count` dataset.
+
+2. Create the MDS plot in 2 dimensions and colour the plot by the true author. 
+
+```{r}
+numeric_dist <- dist(numeric.dat) 
+mds_output <- cmdscale(numeric_dist)
+dat <- data.frame(mds_output)
+dat[["colour"]] <- authors
+ggplot(dat, aes(x = X1, y = X2, colour = colour)) + geom_point()
+```
+## Compare and contrast
+
+Select the best result in each case for PCA, $t$-SNE and MDS and compare.
+
+
+

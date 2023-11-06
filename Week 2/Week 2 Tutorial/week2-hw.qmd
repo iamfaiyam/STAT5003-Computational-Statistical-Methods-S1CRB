@@ -1,0 +1,131 @@
+---
+title: "STAT5003 Week 2 Homework"
+subtitle: "Semester 1B, 2023"
+format:
+    html: 
+        minimal: true
+        embed-resources: true
+---
+
+## Vehicle Data
+
+Consider the Vehicle data set from the `mlbench` package. This data set contains information about 846 vehicles and records the type of vehicle in the `Class` variable. The features include information about the vehicle silhouette. The original data contains 4 class labels (multi-class problem). Consider a simpler problem of identifying only the binary class problem of a `bus` vs `van`
+
+```{r vehicle}
+data(Vehicle, package = "mlbench")
+smaller <- Vehicle |>
+    subset(Class %in% c("saab", "opel")) |>
+    droplevels() # remove unused levels of opel and saab
+```
+
+# Partition the data in training and test
+
+Partition the data into training and test sets. Use 70% of the data for training and 30% for testing. Use the `caret` package to do this.
+
+```{r caret}
+library(caret)
+set.seed(5003)
+
+# Create training and testing indices
+trainIndex <- createDataPartition(smaller$Class, p = 0.7, list = FALSE) 
+
+# Split the data into training and testing sets
+train <- smaller[trainIndex, ]
+test <- smaller[-trainIndex, ]
+
+```
+
+# Fit 4 classifiers, glm, SVM, LDA and kNN
+
+Using the `caret::train` approach fit the classifiers using the training data. Use the default settings for each classifier. Use the `Class` variable as the outcome variable and all other variables as predictors.
+
+```{r train}
+models_to_fit <- c("glm", "svmLinearWeights", "lda", "knn")
+
+# Setup the training control 
+train_control <- trainControl(method = "cv", number = 5, verboseIter = FALSE)
+
+# Fit glm model 
+glm_model <- train(Class ~., data = train, method = "glm", trControl = train_control)
+
+# Fit SVM model 
+svm_model <- train(Class ~., data = train, method = "svmRadial", trControl = train_control)
+
+# Fit LDA model 
+lda_model <- train(Class ~., data = train, method = "lda", trControl = train_control) 
+
+# Fit kNN model 
+knn_model <- train(Class ~., data = train, method = "knn", trControl = train_control)
+```
+
+# Evaluate the models against the training data
+
+Assess the model performance against the trainig data and compute the accuracy. Determine which technique has the best accuracy in this data.
+
+```{r model-accuracy}
+library(caret)
+
+# predict using glm model 
+glm_pred <- predict(glm_model, newdata = train) 
+glm_acc <- mean(glm_pred == train$Class) 
+
+# predict using svm model 
+svm_pred <- predict(svm_model, newdata = train) 
+svm_acc <- mean(svm_pred == train$Class) 
+
+# predict using the lda model 
+lda_pred <- predict(lda_model, newdata = train) 
+lda_acc <- mean(lda_pred == train$Class)
+
+# predict using knn model 
+knn_pred <- predict(knn_model, newdata = train) 
+knn_acc <- mean(knn_pred == train$Class) 
+
+# Print the accuracies
+print(paste0("glm accuracy: ", glm_acc))
+print(paste0("svm accuracy: ", svm_acc))
+print(paste0("lda accuracy: ", lda_acc))
+print(paste0("knn accuracy: ", knn_acc))
+
+```
+From the above output we can see that the most accurate model is svm with an accuracy of 0.76 (2 d.p).
+
+# Evaluate the models against the test data
+
+Assess the model performance against the test data and compute the accuracy. Determine which technique has the best accuracy in this data. Explain if the performance metrics are different in this case.
+
+```{r accuracy}
+# predict using glm model 
+glm_pred <- predict(glm_model, newdata = test) 
+glm_acc <- mean(glm_pred == test$Class) 
+
+# predict using svm model 
+svm_pred <- predict(svm_model, newdata = test) 
+svm_acc <- mean(svm_pred == test$Class) 
+
+# predict using the lda model 
+lda_pred <- predict(lda_model, newdata = test) 
+lda_acc <- mean(lda_pred == test$Class)
+
+# predict using knn model 
+knn_pred <- predict(knn_model, newdata = test) 
+knn_acc <- mean(knn_pred == test$Class) 
+
+# Print the accuracies
+print(paste0("glm accuracy: ", glm_acc))
+print(paste0("svm accuracy: ", svm_acc))
+print(paste0("lda accuracy: ", lda_acc))
+print(paste0("knn accuracy: ", knn_acc))
+
+```
+From the above output we can see that the most accurate model is LDA with an accuracy of 0.68 (2 d.p). In comparison to evaluating the accuracies of the models against the training data previously, here svm performs the second worst, whereas in against the training data it performs the best. A notable difference we see in terms of the accuracy is that evaluating against the test data yields much lower accuracies than the training data. 
+
+# Compute the cross tabulation of the predictions for the glm model in the test data.
+
+Compute the cross tabulation of the predictions for the glm model in the test data.
+
+```{r cross-tab}
+# Computing cross-tabulation using table()
+table(glm_pred, test$Class) 
+
+```

@@ -1,0 +1,158 @@
+---
+title: "STAT5003 Week 5 Homework"
+format:
+  html:
+    code-fold: true
+    code-line-numbers: true
+    number-sections: true
+    number-depth: 3
+    code-tools: true
+    embed-resources: true
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dendextend)
+```
+
+
+# Movie ratings data {.tabset .tabset-fade .tabset-pills}
+
+We will be analysing the MovieLens dataset which contains movie ratings of 58,000 movies by 280,000 users. The entire dataset is too big for us to work with in this lab. It has been preprocessed with only a small subset of the data being considered. If you want to do more exploration yourself, the entire dataset can be downloaded [here](https://grouplens.org/datasets/movielens/latest/).
+
+This part of the lab is based on a chapter in an online book by Rafael Irizarry. You can find it [here](https://rafalab.github.io/dsbook/). There are lots of examples in this book to show you how to use `R` for data science.
+
+## Data processing
+
+## Data input and IDA
+
+Load the data `movielens_top40.csv` into `R`. It contains the top 40 movies with the most ratings and users who rated at least 20 out of the 40 movies.  Note, IDA refers to initial data analysis.  This is important component for all data analytics.
+
+```{r load}
+movielens <- read.csv("movielens_top40.csv", header = TRUE)
+dim(movielens)
+range(movielens, na.rm = TRUE)
+```
+
+In this case, the data is structured in the opposite of a typical data layout. whereby the variables of interest are the movies and they appear on the rows and the user response values appear as the columns. This is done somewhat intentionally for the distance calculations coming soon that computes the pairwise distances, where the pairing is done by row.
+
+```{r}
+h <- hclust(dist(movielens, method = "euclidean"), method = "complete")
+plot(h, cex = 0.4)
+split(rownames(movielens), cutree(h, k = 4))
+```
+
+
+## Hierarchical clustering
+
+You may have noticed that not every movie has a rating by every user. This makes sense since no one could have possibly watched every movie. One question you may ask is whether the clustering result is based on the actual number in the rating (of 1 to 5 stars), or whether it's clustering for the existence of a rating. Make a new dataset by replacing all missing ratings (ie. the NAs) with 0, and all the ratings (regardless of value) with 1. And then repeat the hierarchical clustering, but this time use the **Manhattan distance**. Use `cutree` to find 4 clusters and compare to your result in the previous tree created above.
+
+```{r zeros}
+# Replace missing ratings with 0 and existing ratings with 1 
+movie_lens_replaced <- ifelse(is.na(movielens), 0, 1)
+
+# Hierarchical clustering with Manhattan distance
+h_binary <- hclust(dist(movielens, method = "manhattan"), method = "complete")
+
+# Plotting the hierarchical cluster dendogram 
+plot(h_binary, cex = 0.4) 
+
+# Splitting the clusters using cutree
+split(rownames(movielens), cutree(h_binary, k = 4))
+```
+
+
+# Author by word count {.tabset .tabset-fade .tabset-pills}
+
+The next dataset `author_count.csv` shows the counts of common words appearing in documents by four authors, Jane Austen, Jack London, William Shakespeare and John Milton. We like to investigate whether clustering based word characterstics is able to split the four authors apart. Here the first column shows the author, the remaining columns show the counts of each word.
+
+## Data input
+
+```{r}
+author.dat <- read.csv("author_count.csv", header = TRUE)
+numeric.dat <- author.dat[-1]
+authors <- factor(author.dat[[1]])
+```
+
+## PCA
+
+Compute the PCA and visualize the output.
+
+
+```{r pca}
+# Performing PCA
+pca <- prcomp(numeric.dat, scale. = TRUE) 
+
+# Getting the principal components 
+pc <- pca$x
+
+# Visualising the output using a scatter plot of the first 2 pcs
+plot(pc[, 1], pc[, 2], pch = 16, col = authors, xlab = "PC1", ylab = "PC2")
+legend("topleft", legend = levels(authors), col = unique(authors), pch = 16) 
+```
+
+## t-SNE
+Compute and view the $t$-SNE plots for various perplexity levels for this dataset. Here you will need to consider adjusting the perplexity values.
+
+
+```{r tsne}
+library(Rtsne)
+# Assigning different t-SNE perplexity values
+perplexities <- c(5, 10, 20, 30)
+
+par(mfrow = c(2, 2)) 
+
+for (i in 1:length(perplexities)) {
+  perplexity <- perplexities[i]
+  
+  # Performing t-SNE
+  tsne_ = Rtsne(numeric.dat, perplexity = perplexity) 
+  
+  # Scatter plot of the t-SNE results
+  plot(tsne_$Y, col = authors, pch = 16, xlab = "t-SNE 1", ylab = "t-SNE 2", main = paste("Perplexity =", perplexity))
+  legend("topleft", legend = levels(authors), col = unique(authors), pch = 16)
+}
+```
+
+## MDS
+
+1. Consider the MultiDimensionalScaling (MDS) technique to visualize the data. Compute different distance matrices using the `dist` function for the `author_count` dataset.
+
+```{r mds-dist}
+# Compute various distance matrices
+library(proxy)
+dist_euclidean <- dist(numeric.dat, method = "euclidean")
+dist_manhattan <- dist(numeric.dat, method = "manhattan")
+dist_cosine <- dist(numeric.dat, method = "cosine")
+
+# Plot for MDS using different distance matrices
+mds_euclidean <- cmdscale(dist_euclidean, k = 2) 
+mds_manhattan <- cmdscale(dist_manhattan, k = 2) 
+mds_cosine <- cmdscale(dist_cosine, k = 2) 
+```
+
+2. Create the MDS plot in 2 dimensions and colour the plot by the true author.
+
+```{r mds-plots}
+# Plotting MDS in 2 dimensions
+plot(mds_euclidean, col = authors, pch = 16, xlab = "MDS Dimension 1", ylab = "MDS Dimension 2", main = "MDS - Euclidean Distance")
+legend("topleft", legend = levels(authors), col = unique(authors), pch = 2)
+
+plot(mds_manhattan, col = authors, pch = 16, xlab = "MDS Dimension 1", ylab = "MDS Dimension 2", main = "MDS - Manhattan Distance")
+legend("topleft", legend = levels(authors), col = unique(authors), pch = 2)
+
+plot(mds_cosine, col = authors, pch = 16, xlab = "MDS Dimension 1", ylab = "MDS Dimension 2", main = "MDS - Cosine Distance")
+legend("topleft", legend = levels(authors), col = unique(authors), pch = 2)
+```
+
+## Compare and contrast
+
+Select the best result in each case for PCA, $t$-SNE and MDS and compare the outputs. That is, decide which technique seems to cluster the authors with the best separation.
+
+When comparing and contrasting PCA, tSNE and MDS, we are looking for the most prominent separation and clustering patterns that would be considered the best for this dataset. 
+From the PCA plot, we can see that there is a clear distinction between the clusters of Austen, London, Milton and Shakespeare, although some data points are appearing on other clusters, overeall it does a good job. 
+In contrast to tSNE with various different perplexities, as the perplexity seems to increase we observe that the clusters are not separated that well.
+Finally, when looking at MDS with various different distance metrics, the clusters are scattered and not as well separated as PCA, with various outliers been shown and data points overlapping other clusters. 
+We thus conclude that PCA, according to the visualisations is the best separation technique to be used, followed by MDS and tSNE.

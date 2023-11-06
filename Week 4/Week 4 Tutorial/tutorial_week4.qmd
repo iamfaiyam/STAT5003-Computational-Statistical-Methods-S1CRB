@@ -1,0 +1,113 @@
+---
+title: "Lab Week 4"
+format:
+  html:
+    code-fold: false
+    code-line-numbers: true
+    number-sections: true
+    number-depth: 3
+    code-tools: true
+    embed-resources: true
+---
+
+```{r setup, filename = "Required packages"}
+#| message: false
+library(tidyverse)
+# install.packages("glmnet")
+# install.packages("ISLR")
+library(glmnet)
+library(ISLR)
+
+Hitters
+anyNA(Hitters)
+which(is.na(Hitters))
+which(is.na(Hitters), arr.ind = TRUE)
+```
+
+# Major League Baseball
+
+The dataset we are using is one provided by the ISLR package. It contains Major League Baseball Data from the 1986 and 1987 seasons with 322 observations with 20 variables. It has some missing cases that isn't the focus of this module and can be removed with the following code.
+
+```{r} 
+data(Hitters, package = "ISLR")
+Hitters <- na.omit(Hitters)
+```
+
+## Stepwise selection
+
+Implement a forward stepwise selection procedure to find the best five features. The response feature here is `Salary` which is numeric, so this is a regression and not a classification problem.
+
+```{r}
+library(caret)
+# Start with NULL model, add features one at a time, picking the best at each step 
+## Measure it against some performance metric, AIC/BIC. 
+## Root MSE is also good for simplicity
+### RMSE = sqrt(mean(predicted_target - true_target)^2))
+
+# Fit a model in R # Assuming model fitting function called model_fit
+model <- lm(formula = Salary ~ 1, data = Hitters)
+summary(model)
+## Candidate features
+features <- colnames(Hitters)
+features <- features[features != "Salary"]
+### Assess model on all candidates
+set.seed(5003)
+train_indices <- createDataPartition(Hitters$Salary, p = 0.6)[[1]]
+train_data <- Hitters[train_indices, ]
+test_data <- Hitters[-train_indices, ]
+test_salaries <- test_data[["Salary"]]
+features_selected <- NULL
+
+for (i in 1:length(features)) {
+  candidate_new_features <- features[!features %in% features_selected] # setdiff(features, features_selected) 
+  candidate_models <- lapply(candidate_new_features, function(x) {
+    lm(formula = reformulate(c(selected_features, x), response = "Salary"), 
+       data = train_data)
+  }
+  ### Compute RMSE for the test data 
+  rmse <- function(yhat, y) sqrt(mean((y - yhat)^2))
+  predicted_salaries <- lapply(candidate_models, predict, newdata = test_data)
+  model_rmses <- vapply(predicted_salaries, rmse, 1.0, y = test_salaries)
+  model_rmses
+  ### Choose the best
+  best_model <- candidate_models[[which.min(model_rmses)]]
+  current_best_feature <- (coefficients(best_model) |> rev() |> names())[1]
+  features_selected <- c(features_selected, current_best_feature)
+}
+### Move on to the next (build up all features) 
+```
+
+
+## Lasso regression {.tabset .tabset-fade .tabset-pills}
+
+### Split data and fit
+
+Split the dataset into 60% train and 40% test. Perform a lasso regression using the `glmnet` package. 
+
+```{r}
+library(glmnet)
+# Convert data.frame to a design matrix using model.matrix
+X <- model.matrix(Salary ~., data = train_data)
+y <- train_data$Salary
+lasso.reg <- glmnet(X, y, alpha = 1)
+lambda_grid <- 10^seq(8, -2, length = 128)
+lasso_model <- glmnet(X, y, lambda = lambda_grid, alpha = 1, standardize = TRUE)
+plot(lasso_model, xvar = "lambda", label = TRUE)
+```
+
+
+### Inspect coefficients as function of $\lambda$
+
+Plot the lasso regression coefficients as a function of $\lambda$. Use cross-validation to find the best $\lambda$ value (You can use the inbuilt CV function in glmnet). 
+
+### Check if model is sparse
+
+Inspect the coefficients in the best model above and check if there there are any coefficients that have been shrunk to zero. 
+### Assess on the test set
+
+Using the optimal trained model predict the salary of the test dataset and calculate the mean squared error. 
+
+## Optional Ridge regression
+
+Repeat the prevous question with the Ridge. Perform ridge regression with the `glmnet` package on the dataset.
+

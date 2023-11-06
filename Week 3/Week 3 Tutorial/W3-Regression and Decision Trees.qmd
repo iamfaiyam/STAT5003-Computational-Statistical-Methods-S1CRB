@@ -1,0 +1,94 @@
+---
+title: "W3-Regression and Decision Trees"
+format: pdf
+editor: visual
+---
+
+## Learning Objective
+
+Use the `tree:tree` function to construct regression and decision trees.
+
+## Libraries to load 
+
+```{r tree-package}
+library(tree)
+```
+
+## Single tree based methods
+
+### Regression tree
+
+```{r hitters-tree}
+data(Hitters, package = "ISLR")
+Hitters <- na.omit(Hitters) 
+rt <- tree(Salary ~ Hits + Years, data = Hitters) 
+
+summary(rt) 
+
+plot(rt) 
+text(rt)
+```
+
+If a simpler tree is desired, can control the requirements on node size.
+
+```{r simpler-hitters-tree}
+# Create simpler tree
+simpler.rt <- tree(Salary ~ Hits + Years, data = Hitters, control = tree.control(nobs = nrow(Hitters), minsize = 100))
+
+summary(simpler.rt) 
+plot(simpler.rt) 
+text(simpler.rt)
+```
+
+## Decision Tree
+
+```{r decision-trees}
+salary.cat <- cut(Hitters[["Salary"]], 
+                  breaks = c(0, 500, 750, 1000, 5000))
+dt <- tree(salary.cat ~ Hits + Years, data = Hitters) 
+
+summary(dt) 
+
+plot(dt) 
+text(dt)
+```
+
+## Regression Tree
+
+This section introduces regression trees using housing value dataset of Boston suburbs
+
+```{r decision-trees}
+salary.dat <- cut(Hitters[["Salary"]], 
+                  breaks = c(0, 500, 750, 1000, 5000))
+dt <- tree(salary.cat ~ Hits + Years, data = Hitters) 
+
+summary(dt) 
+
+plot(dt) 
+text(dt)
+# if you don't use plot and text at the same time, R
+# will forget that you produced a plot
+```
+
+```{r boston-data}
+data("Boston", package = "MASS")
+set.seed(1) 
+train <- sample(1:nrow(Boston), nrow(Boston)/2)
+
+# medv: median value of owner-occupied homes in $1000s.
+tree.boston <- tree(medv ~., Boston, subset = train) 
+summary(tree.boston) 
+plot(tree.boston) 
+text(tree.boston) 
+
+# check the RSS of the prediction 
+yhat <- predict(tree.boston, newdata = Boston[-train, ])
+boston.test <- Boston[-train, "medv"]
+plot(yhat, boston.test) 
+abline(0, 1) 
+mean((yhat - boston.test)^2)
+
+# Mean Squared Error
+mean((yhat - boston.test)^2)
+
+```

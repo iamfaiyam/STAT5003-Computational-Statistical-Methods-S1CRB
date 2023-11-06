@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.2.335">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>STAT5003 Week 2 Homework</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+
+
+<style type="text/css">.top-right{position:absolute;top:1em;right:1em}.hidden{display:none !important}.zindex-bottom{z-index:-1 !important}.quarto-layout-panel{margin-bottom:1em}.quarto-layout-panel>figure{width:100%}.quarto-layout-panel>figure>figcaption,.quarto-layout-panel>.panel-caption{margin-top:10pt}.quarto-layout-panel>.table-caption{margin-top:0px}.table-caption p{margin-bottom:.5em}.quarto-layout-row{display:flex;flex-direction:row;align-items:flex-start}.quarto-layout-valign-top{align-items:flex-start}.quarto-layout-valign-bottom{align-items:flex-end}.quarto-layout-valign-center{align-items:center}.quarto-layout-cell{position:relative;margin-right:20px}.quarto-layout-cell:last-child{margin-right:0}.quarto-layout-cell figure,.quarto-layout-cell>p{margin:.2em}.quarto-layout-cell img{max-width:100%}.quarto-layout-cell .html-widget{width:100% !important}.quarto-layout-cell div figure p{margin:0}.quarto-layout-cell figure{display:inline-block;margin-inline-start:0;margin-inline-end:0}.quarto-layout-cell table{display:inline-table}.quarto-layout-cell-subref figcaption,figure .quarto-layout-row figure figcaption{text-align:center;font-style:italic}.quarto-figure{position:relative;margin-bottom:1em}.quarto-figure>figure{width:100%;margin-bottom:0}.quarto-figure-left>figure>p{text-align:left}.quarto-figure-center>figure>p{text-align:center}.quarto-figure-right>figure>p{text-align:right}figure>p:empty{display:none}figure>p:first-child{margin-top:0;margin-bottom:0}figure>figcaption{margin-top:.5em}div[id^=tbl-]{position:relative}.quarto-figure>.anchorjs-link,div[id^=tbl-]>.anchorjs-link{position:absolute;top:0;right:0}.quarto-figure:hover>.anchorjs-link,div[id^=tbl-]:hover>.anchorjs-link,h2:hover>.anchorjs-link,h3:hover>.anchorjs-link,h4:hover>.anchorjs-link,h5:hover>.anchorjs-link,h6:hover>.anchorjs-link,.reveal-anchorjs-link>.anchorjs-link{opacity:1}#title-block-header{margin-block-end:1rem;position:relative;margin-top:-1px}#title-block-header .abstract{margin-block-start:1rem}#title-block-header .abstract .abstract-title{font-weight:600}#title-block-header a{text-decoration:none}#title-block-header .author,#title-block-header .date,#title-block-header .doi{margin-block-end:.2rem}#title-block-header .quarto-title-block>div{display:flex}#title-block-header .quarto-title-block>div>h1{flex-grow:1}#title-block-header .quarto-title-block>div>button{flex-shrink:0;height:2.25rem;margin-top:0}tr.header>th>p:last-of-type{margin-bottom:0px}table,.table{caption-side:top;margin-bottom:1.5rem}caption,.table-caption{padding-top:.5rem;padding-bottom:.5rem;text-align:center}.utterances{max-width:none;margin-left:-8px}iframe{margin-bottom:1em}details{margin-bottom:1em}details[show]{margin-bottom:0}details>summary{color:#6f6f6f}details>summary>p:only-child{display:inline}pre.sourceCode,code.sourceCode{position:relative}p code:not(.sourceCode){white-space:pre-wrap}code{white-space:pre}@media print{code{white-space:pre-wrap}}pre>code{display:block}pre>code.sourceCode{white-space:pre}pre>code.sourceCode>span>a:first-child::before{text-decoration:none}pre.code-overflow-wrap>code.sourceCode{white-space:pre-wrap}pre.code-overflow-scroll>code.sourceCode{white-space:pre}code a:any-link{color:inherit;text-decoration:none}code a:hover{color:inherit;text-decoration:underline}ul.task-list{padding-left:1em}[data-tippy-root]{display:inline-block}.tippy-content .footnote-back{display:none}.quarto-embedded-source-code{display:none}.quarto-unresolved-ref{font-weight:600}.quarto-cover-image{max-width:35%;float:right;margin-left:30px}.cell-output-display .widget-subarea{margin-bottom:1em}.cell-output-display:not(.no-overflow-x){overflow-x:auto}.panel-input{margin-bottom:1em}.panel-input>div,.panel-input>div>div{display:inline-block;vertical-align:top;padding-right:12px}.panel-input>p:last-child{margin-bottom:0}.layout-sidebar{margin-bottom:1em}.layout-sidebar .tab-content{border:none}.tab-content>.page-columns.active{display:grid}div.sourceCode>iframe{width:100%;height:300px;margin-bottom:-0.5em}div.ansi-escaped-output{font-family:monospace;display:block}.ansi-black-fg{color:#3e424d}.ansi-black-bg{background-color:#3e424d}.ansi-black-intense-fg{color:#282c36}.ansi-black-intense-bg{background-color:#282c36}.ansi-red-fg{color:#e75c58}.ansi-red-bg{background-color:#e75c58}.ansi-red-intense-fg{color:#b22b31}.ansi-red-intense-bg{background-color:#b22b31}.ansi-green-fg{color:#00a250}.ansi-green-bg{background-color:#00a250}.ansi-green-intense-fg{color:#007427}.ansi-green-intense-bg{background-color:#007427}.ansi-yellow-fg{color:#ddb62b}.ansi-yellow-bg{background-color:#ddb62b}.ansi-yellow-intense-fg{color:#b27d12}.ansi-yellow-intense-bg{background-color:#b27d12}.ansi-blue-fg{color:#208ffb}.ansi-blue-bg{background-color:#208ffb}.ansi-blue-intense-fg{color:#0065ca}.ansi-blue-intense-bg{background-color:#0065ca}.ansi-magenta-fg{color:#d160c4}.ansi-magenta-bg{background-color:#d160c4}.ansi-magenta-intense-fg{color:#a03196}.ansi-magenta-intense-bg{background-color:#a03196}.ansi-cyan-fg{color:#60c6c8}.ansi-cyan-bg{background-color:#60c6c8}.ansi-cyan-intense-fg{color:#258f8f}.ansi-cyan-intense-bg{background-color:#258f8f}.ansi-white-fg{color:#c5c1b4}.ansi-white-bg{background-color:#c5c1b4}.ansi-white-intense-fg{color:#a1a6b2}.ansi-white-intense-bg{background-color:#a1a6b2}.ansi-default-inverse-fg{color:#fff}.ansi-default-inverse-bg{background-color:#000}.ansi-bold{font-weight:bold}.ansi-underline{text-decoration:underline}:root{--quarto-body-bg: #fff;--quarto-body-color: #222;--quarto-text-muted: #6f6f6f;--quarto-border-color: #6f6f6f;--quarto-border-width: 1px;--quarto-border-radius: 4px}table.gt_table{color:var(--quarto-body-color);font-size:1em;width:100%;background-color:transparent;border-top-width:inherit;border-bottom-width:inherit;border-color:var(--quarto-border-color)}table.gt_table th.gt_column_spanner_outer{color:var(--quarto-body-color);background-color:transparent;border-top-width:inherit;border-bottom-width:inherit;border-color:var(--quarto-border-color)}table.gt_table th.gt_col_heading{color:var(--quarto-body-color);font-weight:bold;background-color:transparent}table.gt_table thead.gt_col_headings{border-bottom:1px solid currentColor;border-top-width:inherit;border-top-color:var(--quarto-border-color)}table.gt_table thead.gt_col_headings:not(:first-child){border-top-width:1px;border-top-color:var(--quarto-border-color)}table.gt_table td.gt_row{border-bottom-width:1px;border-bottom-color:var(--quarto-border-color);border-top-width:0px}table.gt_table tbody.gt_table_body{border-top-width:1px;border-bottom-width:1px;border-bottom-color:var(--quarto-border-color);border-top-color:currentColor}div.columns{display:initial;gap:initial}div.column{display:inline-block;overflow-x:initial;vertical-align:top;width:50%}@media print{:root{font-size:11pt}#quarto-sidebar,#TOC,.nav-page{display:none}.page-columns .content{grid-column-start:page-start}.fixed-top{position:relative}.panel-caption,.figure-caption,figcaption{color:#666}}
+</style>
+<link href="data:text/css,%0A%3Aroot%20%7B%0A%2D%2Dquarto%2Dhl%2Dot%2Dcolor%3A%20%23003B4F%3B%0A%2D%2Dquarto%2Dhl%2Dat%2Dcolor%3A%20%23657422%3B%0A%2D%2Dquarto%2Dhl%2Dss%2Dcolor%3A%20%2320794D%3B%0A%2D%2Dquarto%2Dhl%2Dan%2Dcolor%3A%20%235E5E5E%3B%0A%2D%2Dquarto%2Dhl%2Dfu%2Dcolor%3A%20%234758AB%3B%0A%2D%2Dquarto%2Dhl%2Dst%2Dcolor%3A%20%2320794D%3B%0A%2D%2Dquarto%2Dhl%2Dcf%2Dcolor%3A%20%23003B4F%3B%0A%2D%2Dquarto%2Dhl%2Dop%2Dcolor%3A%20%235E5E5E%3B%0A%2D%2Dquarto%2Dhl%2Der%2Dcolor%3A%20%23AD0000%3B%0A%2D%2Dquarto%2Dhl%2Dbn%2Dcolor%3A%20%23AD0000%3B%0A%2D%2Dquarto%2Dhl%2Dal%2Dcolor%3A%20%23AD0000%3B%0A%2D%2Dquarto%2Dhl%2Dva%2Dcolor%3A%20%23111111%3B%0A%2D%2Dquarto%2Dhl%2Dbu%2Dcolor%3A%20inherit%3B%0A%2D%2Dquarto%2Dhl%2Dex%2Dcolor%3A%20inherit%3B%0A%2D%2Dquarto%2Dhl%2Dpp%2Dcolor%3A%20%23AD0000%3B%0A%2D%2Dquarto%2Dhl%2Din%2Dcolor%3A%20%235E5E5E%3B%0A%2D%2Dquarto%2Dhl%2Dvs%2Dcolor%3A%20%2320794D%3B%0A%2D%2Dquarto%2Dhl%2Dwa%2Dcolor%3A%20%235E5E5E%3B%0A%2D%2Dquarto%2Dhl%2Ddo%2Dcolor%3A%20%235E5E5E%3B%0A%2D%2Dquarto%2Dhl%2Dim%2Dcolor%3A%20%2300769E%3B%0A%2D%2Dquarto%2Dhl%2Dch%2Dcolor%3A%20%2320794D%3B%0A%2D%2Dquarto%2Dhl%2Ddt%2Dcolor%3A%20%23AD0000%3B%0A%2D%2Dquarto%2Dhl%2Dfl%2Dcolor%3A%20%23AD0000%3B%0A%2D%2Dquarto%2Dhl%2Dco%2Dcolor%3A%20%235E5E5E%3B%0A%2D%2Dquarto%2Dhl%2Dcv%2Dcolor%3A%20%235E5E5E%3B%0A%2D%2Dquarto%2Dhl%2Dcn%2Dcolor%3A%20%238f5902%3B%0A%2D%2Dquarto%2Dhl%2Dsc%2Dcolor%3A%20%235E5E5E%3B%0A%2D%2Dquarto%2Dhl%2Ddv%2Dcolor%3A%20%23AD0000%3B%0A%2D%2Dquarto%2Dhl%2Dkw%2Dcolor%3A%20%23003B4F%3B%0A%7D%0A%0A%3Aroot%20%7B%0A%2D%2Dquarto%2Dfont%2Dmonospace%3A%20SFMono%2DRegular%2C%20Menlo%2C%20Monaco%2C%20Consolas%2C%20%22Liberation%20Mono%22%2C%20%22Courier%20New%22%2C%20monospace%3B%0A%7D%0Apre%20%3E%20code%2EsourceCode%20%3E%20span%20%7B%0Acolor%3A%20%23003B4F%3B%0A%7D%0Acode%20span%20%7B%0Acolor%3A%20%23003B4F%3B%0A%7D%0Acode%2EsourceCode%20%3E%20span%20%7B%0Acolor%3A%20%23003B4F%3B%0A%7D%0Adiv%2EsourceCode%2C%0Adiv%2EsourceCode%20pre%2EsourceCode%20%7B%0Acolor%3A%20%23003B4F%3B%0A%7D%0Acode%20span%2Eot%20%7B%0Acolor%3A%20%23003B4F%3B%0A%7D%0Acode%20span%2Eat%20%7B%0Acolor%3A%20%23657422%3B%0A%7D%0Acode%20span%2Ess%20%7B%0Acolor%3A%20%2320794D%3B%0A%7D%0Acode%20span%2Ean%20%7B%0Acolor%3A%20%235E5E5E%3B%0A%7D%0Acode%20span%2Efu%20%7B%0Acolor%3A%20%234758AB%3B%0A%7D%0Acode%20span%2Est%20%7B%0Acolor%3A%20%2320794D%3B%0A%7D%0Acode%20span%2Ecf%20%7B%0Acolor%3A%20%23003B4F%3B%0A%7D%0Acode%20span%2Eop%20%7B%0Acolor%3A%20%235E5E5E%3B%0A%7D%0Acode%20span%2Eer%20%7B%0Acolor%3A%20%23AD0000%3B%0A%7D%0Acode%20span%2Ebn%20%7B%0Acolor%3A%20%23AD0000%3B%0A%7D%0Acode%20span%2Eal%20%7B%0Acolor%3A%20%23AD0000%3B%0A%7D%0Acode%20span%2Eva%20%7B%0Acolor%3A%20%23111111%3B%0A%7D%0Acode%20span%2Epp%20%7B%0Acolor%3A%20%23AD0000%3B%0A%7D%0Acode%20span%2Ein%20%7B%0Acolor%3A%20%235E5E5E%3B%0A%7D%0Acode%20span%2Evs%20%7B%0Acolor%3A%20%2320794D%3B%0A%7D%0Acode%20span%2Ewa%20%7B%0Acolor%3A%20%235E5E5E%3B%0Afont%2Dstyle%3A%20italic%3B%0A%7D%0Acode%20span%2Edo%20%7B%0Acolor%3A%20%235E5E5E%3B%0Afont%2Dstyle%3A%20italic%3B%0A%7D%0Acode%20span%2Eim%20%7B%0Acolor%3A%20%2300769E%3B%0A%7D%0Acode%20span%2Ech%20%7B%0Acolor%3A%20%2320794D%3B%0A%7D%0Acode%20span%2Edt%20%7B%0Acolor%3A%20%23AD0000%3B%0A%7D%0Acode%20span%2Efl%20%7B%0Acolor%3A%20%23AD0000%3B%0A%7D%0Acode%20span%2Eco%20%7B%0Acolor%3A%20%235E5E5E%3B%0A%7D%0Acode%20span%2Ecv%20%7B%0Acolor%3A%20%235E5E5E%3B%0Afont%2Dstyle%3A%20italic%3B%0A%7D%0Acode%20span%2Ecn%20%7B%0Acolor%3A%20%238f5902%3B%0A%7D%0Acode%20span%2Esc%20%7B%0Acolor%3A%20%235E5E5E%3B%0A%7D%0Acode%20span%2Edv%20%7B%0Acolor%3A%20%23AD0000%3B%0A%7D%0Acode%20span%2Ekw%20%7B%0Acolor%3A%20%23003B4F%3B%0A%7D%0A%2Eprevent%2Dinlining%20%7B%0Acontent%3A%20%22%3C%2F%22%3B%0A%7D%0A%0A" rel="stylesheet" id="quarto-text-highlighting-styles">
+
+
+</head>
+
+<body>
+
+
+<header id="title-block-header">
+<h1 class="title">STAT5003 Week 2 Homework</h1>
+<p class="subtitle">Semester 1B, 2023</p>
+
+
+</header>
+
+<h2 id="vehicle-data">Vehicle Data</h2>
+<p>Consider the Vehicle data set from the <code>mlbench</code> package. This data set contains information about 846 vehicles and records the type of vehicle in the <code>Class</code> variable. The features include information about the vehicle silhouette. The original data contains 4 class labels (multi-class problem). Consider a simpler problem of identifying only the binary class problem of a <code>bus</code> vs <code>van</code></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(Vehicle, <span class="at">package =</span> <span class="st">&quot;mlbench&quot;</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>smaller <span class="ot">&lt;-</span> Vehicle <span class="sc">|&gt;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">subset</span>(Class <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;saab&quot;</span>, <span class="st">&quot;opel&quot;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">droplevels</span>() <span class="co"># remove unused levels of opel and saab</span></span></code></pre></div>
+</div>
+<h1 id="partition-the-data-in-training-and-test">Partition the data in training and test</h1>
+<p>Partition the data into training and test sets. Use 70% of the data for training and 30% for testing. Use the <code>caret</code> package to do this.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(caret)</span></code></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Loading required package: ggplot2</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Loading required package: lattice</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">5003</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Create training and testing indices</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>trainIndex <span class="ot">&lt;-</span> <span class="fu">createDataPartition</span>(smaller<span class="sc">$</span>Class, <span class="at">p =</span> <span class="fl">0.7</span>, <span class="at">list =</span> <span class="cn">FALSE</span>) </span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Split the data into training and testing sets</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>train <span class="ot">&lt;-</span> smaller[trainIndex, ]</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>test <span class="ot">&lt;-</span> smaller[<span class="sc">-</span>trainIndex, ]</span></code></pre></div>
+</div>
+<h1 id="fit-4-classifiers-glm-svm-lda-and-knn">Fit 4 classifiers, glm, SVM, LDA and kNN</h1>
+<p>Using the <code>caret::train</code> approach fit the classifiers using the training data. Use the default settings for each classifier. Use the <code>Class</code> variable as the outcome variable and all other variables as predictors.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>models_to_fit <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;glm&quot;</span>, <span class="st">&quot;svmLinearWeights&quot;</span>, <span class="st">&quot;lda&quot;</span>, <span class="st">&quot;knn&quot;</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Setup the training control </span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>train_control <span class="ot">&lt;-</span> <span class="fu">trainControl</span>(<span class="at">method =</span> <span class="st">&quot;cv&quot;</span>, <span class="at">number =</span> <span class="dv">5</span>, <span class="at">verboseIter =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit glm model </span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>glm_model <span class="ot">&lt;-</span> <span class="fu">train</span>(Class <span class="sc">~</span>., <span class="at">data =</span> train, <span class="at">method =</span> <span class="st">&quot;glm&quot;</span>, <span class="at">trControl =</span> train_control)</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit SVM model </span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>svm_model <span class="ot">&lt;-</span> <span class="fu">train</span>(Class <span class="sc">~</span>., <span class="at">data =</span> train, <span class="at">method =</span> <span class="st">&quot;svmRadial&quot;</span>, <span class="at">trControl =</span> train_control)</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit LDA model </span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>lda_model <span class="ot">&lt;-</span> <span class="fu">train</span>(Class <span class="sc">~</span>., <span class="at">data =</span> train, <span class="at">method =</span> <span class="st">&quot;lda&quot;</span>, <span class="at">trControl =</span> train_control) </span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit kNN model </span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>knn_model <span class="ot">&lt;-</span> <span class="fu">train</span>(Class <span class="sc">~</span>., <span class="at">data =</span> train, <span class="at">method =</span> <span class="st">&quot;knn&quot;</span>, <span class="at">trControl =</span> train_control)</span></code></pre></div>
+</div>
+<h1 id="evaluate-the-models-against-the-training-data">Evaluate the models against the training data</h1>
+<p>Assess the model performance against the trainig data and compute the accuracy. Determine which technique has the best accuracy in this data.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(caret)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co"># predict using glm model </span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>glm_pred <span class="ot">&lt;-</span> <span class="fu">predict</span>(glm_model, <span class="at">newdata =</span> train) </span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>glm_acc <span class="ot">&lt;-</span> <span class="fu">mean</span>(glm_pred <span class="sc">==</span> train<span class="sc">$</span>Class) </span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="co"># predict using svm model </span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>svm_pred <span class="ot">&lt;-</span> <span class="fu">predict</span>(svm_model, <span class="at">newdata =</span> train) </span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>svm_acc <span class="ot">&lt;-</span> <span class="fu">mean</span>(svm_pred <span class="sc">==</span> train<span class="sc">$</span>Class) </span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="co"># predict using the lda model </span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>lda_pred <span class="ot">&lt;-</span> <span class="fu">predict</span>(lda_model, <span class="at">newdata =</span> train) </span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>lda_acc <span class="ot">&lt;-</span> <span class="fu">mean</span>(lda_pred <span class="sc">==</span> train<span class="sc">$</span>Class)</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a><span class="co"># predict using knn model </span></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>knn_pred <span class="ot">&lt;-</span> <span class="fu">predict</span>(knn_model, <span class="at">newdata =</span> train) </span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>knn_acc <span class="ot">&lt;-</span> <span class="fu">mean</span>(knn_pred <span class="sc">==</span> train<span class="sc">$</span>Class) </span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a><span class="co"># Print the accuracies</span></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste0</span>(<span class="st">&quot;glm accuracy: &quot;</span>, glm_acc))</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] &quot;glm accuracy: 0.72093023255814&quot;</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste0</span>(<span class="st">&quot;svm accuracy: &quot;</span>, svm_acc))</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] &quot;svm accuracy: 0.760797342192691&quot;</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste0</span>(<span class="st">&quot;lda accuracy: &quot;</span>, lda_acc))</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] &quot;lda accuracy: 0.72093023255814&quot;</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste0</span>(<span class="st">&quot;knn accuracy: &quot;</span>, knn_acc))</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] &quot;knn accuracy: 0.634551495016611&quot;</code></pre>
+</div>
+</div>
+<p>From the above output we can see that the most accurate model is svm with an accuracy of 0.76 (2 d.p).</p>
+<h1 id="evaluate-the-models-against-the-test-data">Evaluate the models against the test data</h1>
+<p>Assess the model performance against the test data and compute the accuracy. Determine which technique has the best accuracy in this data. Explain if the performance metrics are different in this case.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># predict using glm model </span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>glm_pred <span class="ot">&lt;-</span> <span class="fu">predict</span>(glm_model, <span class="at">newdata =</span> test) </span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>glm_acc <span class="ot">&lt;-</span> <span class="fu">mean</span>(glm_pred <span class="sc">==</span> test<span class="sc">$</span>Class) </span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="co"># predict using svm model </span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>svm_pred <span class="ot">&lt;-</span> <span class="fu">predict</span>(svm_model, <span class="at">newdata =</span> test) </span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>svm_acc <span class="ot">&lt;-</span> <span class="fu">mean</span>(svm_pred <span class="sc">==</span> test<span class="sc">$</span>Class) </span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a><span class="co"># predict using the lda model </span></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>lda_pred <span class="ot">&lt;-</span> <span class="fu">predict</span>(lda_model, <span class="at">newdata =</span> test) </span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>lda_acc <span class="ot">&lt;-</span> <span class="fu">mean</span>(lda_pred <span class="sc">==</span> test<span class="sc">$</span>Class)</span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a><span class="co"># predict using knn model </span></span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>knn_pred <span class="ot">&lt;-</span> <span class="fu">predict</span>(knn_model, <span class="at">newdata =</span> test) </span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>knn_acc <span class="ot">&lt;-</span> <span class="fu">mean</span>(knn_pred <span class="sc">==</span> test<span class="sc">$</span>Class) </span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Print the accuracies</span></span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste0</span>(<span class="st">&quot;glm accuracy: &quot;</span>, glm_acc))</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] &quot;glm accuracy: 0.671875&quot;</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste0</span>(<span class="st">&quot;svm accuracy: &quot;</span>, svm_acc))</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] &quot;svm accuracy: 0.625&quot;</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste0</span>(<span class="st">&quot;lda accuracy: &quot;</span>, lda_acc))</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] &quot;lda accuracy: 0.6796875&quot;</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste0</span>(<span class="st">&quot;knn accuracy: &quot;</span>, knn_acc))</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] &quot;knn accuracy: 0.53125&quot;</code></pre>
+</div>
+</div>
+<p>From the above output we can see that the most accurate model is LDA with an accuracy of 0.68 (2 d.p). In comparison to evaluating the accuracies of the models against the training data previously, here svm performs the second worst, whereas in against the training data it performs the best. A notable difference we see in terms of the accuracy is that evaluating against the test data yields much lower accuracies than the training data.</p>
+<h1 id="compute-the-cross-tabulation-of-the-predictions-for-the-glm-model-in-the-test-data.">Compute the cross tabulation of the predictions for the glm model in the test data.</h1>
+<p>Compute the cross tabulation of the predictions for the glm model in the test data.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Computing cross-tabulation using table()</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="fu">table</span>(glm_pred, test<span class="sc">$</span>Class) </span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>        
+glm_pred opel saab
+    opel   40   19
+    saab   23   46</code></pre>
+</div>
+</div>
+
+
+
+
+</body></html>

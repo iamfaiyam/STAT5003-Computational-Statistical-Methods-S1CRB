@@ -1,0 +1,116 @@
+---
+title: "W4-Stepwise"
+format: html
+editor: visual
+---
+
+## Libraries to load
+
+```{r}
+library(ISLR) 
+library(sjPlot) 
+library(leaps)
+```
+
+## Credit data
+
+Goal: predict the average credit card balance given the explanatory variables
+
+```{r}
+?ISLR::Credit
+str(Credit)
+```
+
+### Using the `step()` function
+
+#### Backwards stepwise
+
+```{r}
+M1 = lm(Balance ~ . - ID, data = Credit) 
+back_cp = step(M1, direction = "backward", trace = 0)
+back_bic = step(M1, direction = "backward", k = log(nrow(Credit)), trace = 0)
+# if we use k = 2, that's effectively using Mallow's Cp or the AIC, but if we want BIC we need log(n)
+summary(back_cp) 
+summary(back_bic)
+```
+
+#### Forward stepwise
+
+```{r}
+M0 = lm(Balance ~ 1, data = Credit) 
+fwd_cp = step(M0, scope = list(lower = M0, upper = M1), 
+              direction = "forward", trace = 0)
+fwd_bic = step(M0, scope = list(lower = M0, upper = M1), 
+               direction = "forward", k = log(nrow(Credit)), trace = 0)
+summary(fwd_cp)
+summary(fwd_bic)
+```
+
+#### Forward and backward stepwise
+
+```{r}
+both_cp = step(M1, direction = "both")
+both_bic = step(M1, direction = "both", k = log(nrow(Credit)))
+summary(both_cp) 
+summary(both_bic)
+```
+
+#### Summary
+
+```{r}
+sjPlot::tab_model(
+  back_cp, fwd_cp, both_cp, 
+  back_bic, fwd_bic, both_bic, 
+  show.ci = FALSE, show.p = FALSE, 
+  dv.labels = c("Backward Cp", "Forward Cp", "Both Cp", "Backward BIC", "Forward BIC", "Both BIC")
+)
+```
+
+### Using the `regsubsets()` function
+
+We could also perform stepwise selection using the `regsubsets()` function from the **leaps** package.
+
+```{r regsubsets-forward}
+forward.credit <- leaps::regsubsets(
+  Balance ~ . - ID, 
+  data = Credit, 
+  method = "forward", 
+  nvmax = 11) 
+summary.forward.credit <- summary(forward.credit)
+summary.forward.credit
+str(summary.forward.credit)
+```
+
+#### Cp
+
+```{r regsubsets-forward-Cp}
+min.cp <- which.min(summary.forward.credit$cp)
+plot(summary.forward.credit$cp, type = 'l', 
+     ylab = "Mallows C_p measure", 
+     xlab = "Number of features")
+points(summary.forward.credit$cp)
+points(min.cp, summary.forward.credit$cp[min.cp], pch = 4, col = "blue", cex = 2)
+
+```
+
+#### BIC
+
+```{r regsubsets-forward-BIC}
+min.bic <- which.min(summary.forward.credit$bic)
+plot(summary.forward.credit$bic, type = 'l', 
+     ylab = "BIC", 
+     xlab = "Number of features")
+points(summary.forward.credit$bic)
+points(min.bic, summary.forward.credit$bic[min.bic], pch = 4, col = "blue", cex = 2)
+```
+
+#### Adjusted R2
+
+```{r regsubsets-forward-R2}
+min.adjr2 <- which.max(summary.forward.credit$adjr2)
+plot(summary.forward.credit$adjr2, type = 'l', 
+     ylab = "R2", 
+     xlab = "Number of features")
+points(summary.forward.credit$adjr2)
+points(min.adjr2, summary.forward.credit$adjr2[min.adjr2], pch = 4, col = "blue", cex = 2)
+```

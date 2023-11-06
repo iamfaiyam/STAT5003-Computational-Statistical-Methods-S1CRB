@@ -1,0 +1,122 @@
+---
+title: "W6-MissingData"
+format: html
+editor: visual
+---
+
+## Libraries to load
+
+```{r, warning=FALSE, message=FALSE}
+library(ggpubr)
+library(tidyverse)
+library(mlbench)
+library(naniar)
+```
+
+## Exploring missing data
+
+```{r}
+data(PimaIndiansDiabetes2, package = "mlbench")
+data <- PimaIndiansDiabetes2
+```
+
+Using functions from the **naniar** package to understand the missingness in the data.
+
+```{r}
+miss_var_summary(data) 
+dat |> group_by(diabetes) |> miss_var_summary()
+miss_var_table(dat) # number of variables with different n_miss
+```
+
+```{r}
+# miss_case_summary(dat) 
+miss_case_table(dat)
+```
+
+```{r}
+miss_var_run(dat, var=glucose) #shows where gaps occur
+miss_var_span(data, var = insulin, span_every = 200)
+```
+
+Visualising the missingness
+
+```{r}
+vis_miss(dat)
+vis_miss(dat, cluster = TRUE) # lots of observations both insulin and tricepts missing
+vis_miss(dat, sort_miss = TRUE, cluster = TRUE) # sort by most missing var
+```
+
+```{r}
+gg_miss_case(dat) # cases by number of missing var 
+gg_miss_case(dat, facet = diabetes) # facet/group by one var
+```
+
+```{r}
+gg_miss_var(dat, facet = diabetes) 
+gg_miss_span(dat, var = insulin, span_every = 100, facet = diabetes) 
+```
+
+## Performing imputation on a simulated data set
+
+Using `rnorm()`, we draw random features from a Gaussian distribution. We will simulate a dataset with two features - each feature will have a different mean but the same standard deviation for the two simulated samples.
+
+```{r}
+set.seed(5003) 
+# Simulate same linearly related data
+dat <- as.data.frame(MASS::mvrnorm(n = 200, mu = c(1, 1), 
+                                   Sigma = matrix(c(2, 1, 1, 1), ncol = 2)))
+names(dat) <- c("X", "Y")
+dat.missing <- dat
+attr(dat, "name") <- "Original Data"
+```
+
+```{r}
+# Replace 20% of the Y values as missing data 
+missing.inds <- sort(sample(seq(nrow(dat)), size = 0.2 * nrow(dat)))
+dat.missing$Y[missing.inds] <- NA
+# Add a factor variable that specifies if there is a missing data for that case (useful for plotting) 
+dat$Missing <- c("Not missing", "Missing")[as.numeric(is.na(dat.missing$Y)) + 1]
+dat.missing$Missing <- dat$Missing
+```
+
+Do a simple single variable mean imputation
+
+```{r}
+dat.simple <- dat.missing
+mn <- mean(dat.missing$Y, na.rm = TRUE) 
+dat.simple$Y[is.na(dat.simple$Y)] <- mn
+attr(dat.simple, "name") <- "Simple Imputation" 
+```
+
+Do a simple linear regression imputation
+
+```{r}
+simp.lm <- lm(Y ~ X, dat = dat.missing) 
+obs.X <- dat.missing |> filter(is.na(Y)) |> select(X) 
+simple.preds <- predict(simp.lm, newdata = obs.X) 
+dat.determ <- dat.missing
+dat.determ$Y[missing.inds] <- simple.preds
+attr(dat.determ, "name") <- "Deterministic imputation"
+```
+
+Do a random imputation based on the estimated variability in the regression model
+
+```{r}
+est.sigma <- sigma(simp.lm) 
+rand.preds <- simple.preds + rnorm(length(simple.preds), sd = est.sigma) 
+dat.rand <- dat.missing
+dat.rand$Y[missing.inds] <- rand.preds
+attr(dat.rand, "name") <- "Random imputation"
+```
+
+Plot the different results
+
+```{r}
+plots <- lapply(list(dat, dat.simple, dat.determ, dat.rand), function(dat) {
+  ggplot(dat) +
+    geom_point(aes(x = X, y = Y, colour = Missing), alpha = 0.75) + 
+    theme_minimal() + 
+    labs(title = attr(dat, "name"))
+})
+ggpubr::ggarrange(plotlist = plots, common.legend = TRUE)
+```

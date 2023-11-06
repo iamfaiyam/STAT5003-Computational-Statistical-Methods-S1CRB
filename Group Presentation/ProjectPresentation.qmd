@@ -1,0 +1,341 @@
+---
+title: "Weather Prediction in Australia"
+author: "Group 1 - Faiyam Islam, Tin Duong, Geetha Balakrishnan, Daniel Poon"
+format: 
+  revealjs:
+    transition: concave
+    code-overflow: wrap
+    code-line-numbers: true
+    theme: moon
+    auto-slide: 20000
+---
+
+# Overview
+
+-   "Rain in Australia" on Kaggle contains daily weather observations #from multiple weather stations in Australia from 2008 to 2018.
+
+-   The dataset includes location, date, temperature, humidity, rainfall, wind speed, direction, and other atmospheric measurements.
+
+-   The objective is to analyse the dataset and create a model to predict if it will rain tomorrow in a given Australian location based on weather conditions.
+
+---
+
+### Load the required packages
+
+```{r include=FALSE}
+#| echo: true
+#| code-overflow: wrap
+library(dplyr, warn.conflicts = FALSE) # For data manipulation 
+library(ggplot2) # For data visualisation 
+library(tidyverse, warn.conflicts = FALSE)
+library(caret, warn.conflicts = FALSE)
+library(randomForest, warn.conflicts = FALSE)
+library(ranger, warn.conflicts = FALSE)
+library(e1071, warn.conflicts = FALSE)
+library(class, warn.conflicts = FALSE)
+```
+
+### Import weatherAUS dataset
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+weather_dat <- read.csv("weatherAUS.csv", header = TRUE, stringsAsFactors = FALSE)
+```
+
+### Convert categorical variables to factors
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+cat_cols <- c("Location", "WindGustDir", "WindDir9am", "WindDir3pm", "RainToday", "RainTomorrow")
+weather_dat[cat_cols] <- lapply(weather_dat[cat_cols], factor)
+```
+
+### Convert RainToday and RainTomorrow to binary variables
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+weather_dat$RainToday <- as.integer(weather_dat$RainToday == "Yes")
+weather_dat$RainTomorrow <- as.integer(weather_dat$RainTomorrow == "Yes")
+```
+
+### Remove Date and Location
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+weather_dat <- subset(weather_dat, select = -c(Date, Location))
+```
+
+---
+
+### For columns with too many missing values, replace with mean value
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+weather_dat$Evaporation[is.na(weather_dat$Evaporation)] <- round(mean(weather_dat$Evaporation, na.rm = TRUE))
+weather_dat$Sunshine[is.na(weather_dat$Sunshine)] <- round(mean(weather_dat$Sunshine, na.rm = TRUE))
+weather_dat$Cloud9am[is.na(weather_dat$Cloud9am)] <- round(mean(weather_dat$Cloud9am, na.rm = TRUE))
+weather_dat$Cloud3pm[is.na(weather_dat$Cloud3pm)] <- round(mean(weather_dat$Cloud3pm, na.rm = TRUE))
+```
+
+-   Allows preservation of the data structure.
+-   Helps preserve existing patterns and relationships in the data.
+-   May cause imputation bias, i.e. mean assumings that the missing values have same distributed as the observed values.
+
+---
+
+### Omit the rest that have missing values
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+weather_dat <- na.omit(weather_dat)
+```
+
+#### Identify categorical variables that are dependent on RainTomorrow
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+for (var in c("WindGustDir", "WindDir9am", "WindDir3pm")) {
+  cross_table <- table(weather_dat[[var]], weather_dat$RainTomorrow)
+  chi_square <- chisq.test(cross_table)
+  print(paste("Variable:", var))
+  print(chi_square)
+}
+```
+
+All three variables are dependent on RainTomorrow.
+
+---
+
+### Explore relationship between numeric variables using correlation matrix
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+cor <- cor(weather_dat[c("MinTemp","MaxTemp", "Rainfall", "Evaporation", "Sunshine", "WindGustSpeed", "WindSpeed9am", "WindSpeed3pm", "Humidity9am", "Humidity3pm", "Pressure9am", "Pressure3pm", "Cloud9am", "Cloud3pm", "Temp9am", "Temp3pm")])
+high_cor = findCorrelation(cor, cutoff = 0.6, names=TRUE)
+print(high_cor)
+```
+
+-   The aforementioned variables in `high_cor` contain r-score of 0.6 or greater.
+-   Potential multicollinearity issues.
+
+---
+
+### Remove the high correlated features
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+weather_dat <- subset(weather_dat, select = -c(MaxTemp, Temp3pm, Temp9am, Humidity9am, Pressure9am, WindGustSpeed))
+summary(weather_dat)
+```
+
+### Convert factors to numeric
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+weather_dat$WindGustDir = as.numeric(weather_dat$WindGustDir)
+weather_dat$WindDir9am = as.numeric(weather_dat$WindDir9am)
+weather_dat$WindDir3pm = as.numeric(weather_dat$WindDir3pm)
+```
+
+---
+
+### Applying PCA to reduce the dimensions
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+pca <- prcomp(weather_dat)
+summary(pca)
+```
+
+-   PC1 can explain 53.41% of variance and PC2 can explain 14.21%.
+-   Scree plot can help us to choose the number of PC to retain.
+
+---
+
+### PCA plot
+
+```{r fig.align='center'}
+#| echo: true
+#| code-overflow: wrap
+plot(pca, type="line", main="Scree Plot")
+abline(h=1,col="red")
+```
+
+---
+
+### Create new dataframe contains the most important components
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+PC_df <- pca$x[,1:3]
+PC_df <- as.data.frame(PC_df)
+PC_df <- cbind(RainTomorrow = weather_dat$RainTomorrow, PC_df) 
+head(PC_df)
+```
+
+### Split the preprocessed dataset into training and test set
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+set.seed(20230521)
+training_indices <- caret::createDataPartition(PC_df$RainTomorrow, list = FALSE,
+                                               p = 0.80)[ ,1]
+train_dat <- PC_df[training_indices, ]
+test_dat <- PC_df[-training_indices, ]
+```
+
+---
+
+### Train the classifier models
+
+```{r train}
+#| echo: true
+#| code-overflow: wrap
+logit_model <- glm(train_dat$RainTomorrow ~ ., family = binomial, data = train_dat)
+ranger_model <- ranger(train_dat$RainTomorrow ~ ., data = train_dat,num.trees = 1)
+nb_model <- naiveBayes(train_dat$RainTomorrow ~ ., data = train_dat)
+knn_model <- with(train_dat,
+                  knn(train = train_dat, 
+                      test = test_dat, 
+                      cl = train_dat$RainTomorrow,
+                      k = 2,
+                      prob = TRUE))
+```
+
+
+
+### Predict using test dataset
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+logit_prediction <- predict(logit_model, newdata = test_dat)
+logit_prediction <- ifelse(logit_prediction > 0.5, "1", "0")
+nb_prediction <- predict(nb_model, newdata = test_dat)
+ranger_prediction <- predict(ranger_model, data = test_dat)[["predictions"]]
+ranger_prediction <- ifelse(ranger_prediction > 0.5, "1", "0")
+knn_prediction <- knn_model
+knn_probs <- attr(knn_model, "prob")
+```
+
+---
+
+### Evaluate Logistic Regression
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+logit_accuracy <- mean(logit_prediction == test_dat$RainTomorrow, na.rm = TRUE) * 100
+confusionMatrix(as.factor(logit_prediction),as.factor(test_dat$RainTomorrow))
+```
+
+---
+
+### Evaluate NaiveBayes
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+nb_accuracy <- mean(nb_prediction == test_dat$RainTomorrow, na.rm = TRUE) * 100
+confusionMatrix(as.factor(nb_prediction),as.factor(test_dat$RainTomorrow))
+```
+
+---
+
+### Evaluate Ranger
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+ranger_accuracy <- mean(ranger_prediction == test_dat$RainTomorrow, na.rm = TRUE) * 100
+confusionMatrix(factor(ranger_prediction),factor(test_dat$RainTomorrow))
+```
+
+---
+
+### Evaluate KNN
+
+```{r}
+#| echo: true
+#| code-overflow: wrap
+knn_accuracy <- mean(knn_prediction == test_dat$RainTomorrow, na.rm = TRUE) * 100
+confusionMatrix(factor(knn_prediction),factor(test_dat$RainTomorrow))
+```
+
+---
+
+### Plot for model accuracy
+
+```{r fig.align='center'}
+#| echo: true
+#| code-overflow: wrap
+accuracy_data <- data.frame(
+  "Model" = c("Logistic Regression", "Naive Bayes", "Ranger", "KNN"),
+  "Accuracy" = c(logit_accuracy, nb_accuracy, ranger_accuracy, knn_accuracy)
+)
+ggplot(accuracy_data, aes(x = Model, y = Accuracy, fill = Model)) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.5) +
+  labs(title = "Model Accuracy", x = "Model", y = "Accuracy") +
+  theme_minimal()
+```
+
+## Summary
+
+### Dataset Overview
+-   "Rain in Australia" dataset contains weather observations from 2008 to 2018
+-   Objective is to predict the weather the following day based on temperature, humidity, rainfall from previous data
+
+### Data Preprocessing
+-   Converting categorical predictors to numerical for machine learning purposes.
+
+---
+
+-   RainToday and RainTomorrow variables converted to binary. 
+-   Missing columns were replaced with mean values.
+
+### Data Exploration 
+-   Chi-square tests were performed to identify dependency of variables. 
+-   Correlation Analysis: variables with correlation score of 0.6 or greater were identified as having high correlation.
+-   Could lead to multicollinearity issues. 
+
+---
+
+### Dimensionality Reduction 
+
+-   PCA was applied to further reduce dimensions of the dataset. 
+-   Scree plot was examined to determine the number of principal components to retain. 
+
+### Model Training and Evaluation
+
+-   Logistic Regression, Naive Bayes, Ranger and kNN.
+-   Model evaluation: accuracy metrics and confusion matrices. 
+-   Bar plot to visualise accuracy of the different models. 
+
+---
+
+### Where to next? 
+
+-   Produce more meaningful visualisations to understand the predictors we have overlooked. 
+-   Could use Neural Networks - a more robust technique against noise.
+-   Using these models and evaluating them through certain metrics to accurately predict whether or not it will rain tomorrow in a given location in Australia based on the weather conditions. 
+
+
+# Thank you for listening!
+
+
+
+
+

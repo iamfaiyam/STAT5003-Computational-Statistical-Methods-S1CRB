@@ -1,0 +1,140 @@
+---
+title: "Lab Week 2"
+format:
+  html:
+    code-fold: true
+    code-line-numbers: true
+    number-sections: true
+    number-depth: 3
+    code-tools: true
+    embed-resources: true
+---
+
+```{r setup}
+#| message: false
+library(tidyverse)
+library(caret)
+library(e1071) # for SVMs
+library(class) # for kNN
+library(MASS) # LDA
+```
+
+This week, we will be learning how to do classification with the four algorithms - logistic regression, LDA, kNN and SVMs.
+
+The dataset we will be using is called `PimaIndiansDiabetes` and it is included as part of the `mlbench` package. You will first need to install the `mlbench` package. To load the data, do the following:
+
+```{r load}
+data(PimaIndiansDiabetes, package = "mlbench")
+```
+
+## Basic Exploratory Data Analysis
+
+Inspect the `PimaIndiansDiabetes2` and verify its structure. It should have 9 columns, 8 of those being numeric features and a single class label variable. If any missing data is observed, discard it and use complete cases.
+
+```{r}
+str(PimaIndiansDiabetes)
+# "Tidy way" 
+glance(PimaIndiansDiabetes)
+```
+
+```{r}
+str(PimaIndiansDiabetes)
+complete_pima <- na.omit(PimaIndiansDiabetes)
+head(complete_pima)
+```
+
+## Logistic Regression
+
+Use `glm()` to perform logistic regression to classify observations as positive or negative for diabetes.
+
+In particular, determine which of the features seem the most informative to explain the diabetes class.
+
+```{r}
+logit.reg <- glm(diabetes ~ ., family = binomial, data = complete_pima)
+sum_logit_reg <- summary(logit.reg) 
+sum_logit_reg
+```
+
+The most informative feature seems to be `glucose` feature as it is the most significant after accounting for the effect of all other features with the smallest p-values. 
+
+### Logistic regression : compute the accuracy
+
+Compute the accuracy of the logistic regression classifier across the entire training data set.
+
+```{r}
+# % of times the model agrees with the observed outcome
+prob_positive <- predict(logit.reg, type = "response")
+predictions <- ifelse(prob_positive > 0.5, "pos", "neg") |> factor()
+# Direct way to compute % as a decimal
+mean(predictions == complete_pima$diabetes) 
+# Sneak peak way into next week 
+table(predictions, complete_pima$diabetes) 
+```
+
+## Classifier comparisons
+
+Install and load the `caret` package. Use the `caret` package for this question.
+
+### Partition the data
+
+Partition the `PimaIndiansDiabetes2` dataset into 75% training and 25% test.
+
+```{r}
+set.seed(20230427)
+training_indices <- createDataPartition(complete_pima$diabetes, p = 0.75)[[1]]
+train_dat <- complete_pima[training_indices, ]
+test_dat <- complete_pima[-training_indices, ]
+```
+
+### Train classifiers
+
+Using the training dataset and all the given features, train three classifiers (logistic regression, LDA, kNN and SVM classifiers). This can be done using the `caret` package and selecting the appropriate `method` parameter argument in the `train` function. For SVM, consider using the choice `method = "svmLinearWeights"`. A full list of supported methods are given [here](https://topepo.github.io/caret/train-models-by-tag.html). Compute the accuracy of each classifier on the training dataset.
+
+```{r}
+models_to_fit <- c("glm", "lda", "knn", "svmLinearWeights")
+trControl = trainControl(method = "repeatedcv")
+
+# Optional adv topic
+# lapply to make a list of models using a function 
+
+log_model <- train(diabetes ~., method = "glm", family = binomial, data = train_dat, trControl = trControl) 
+
+lda_model <- train(diabetes ~., method = "lda", data = train_dat, trControl = trControl) 
+
+knn_model <- train(diabetes ~., method = "knn", data = train_dat, trControl = trControl) 
+
+svm_model <- train(diabetes ~., method = "svmLinearWeights", data = train_dat, trControl = trControl) 
+
+all_models <- list(log_model,
+                   lda_model, 
+                   knn_model,
+                   svm_model)
+```
+
+### Assess on Test data
+
+Using the trained classification models, classify the test set data and Compare their test set accuracies.
+
+```{r}
+# Check accuracy on test set
+predictions <- predict(all.models, newdata = test_dat)
+accuracies <- vapply(predictions, \(x) mean(x == test_dat$diabetes), numeric(1L)) 
+```
+
+## Visualize the boundaries created by the classifiers
+
+Consider only two features for predictors for ease of visualization. Construct models for `kNN`, logistic regression and SVM to classify the `diabetes` response based on the predictors `glucose` and `mass`.
+
+\[
+  \log(p/(1-p)) = \beta_0 + \beta_1 X_1 + \beta_2 X_2
+\]
+
+### Linear decision boundaries
+
+In particular, plot the data of `mass` against `glucose` and colour the points by the `diabetes` labels. Then add to your plot the decision boundaries for a logistic regression and linear SVM using only the `mass` and `glucose` predictors. (Assume for logistic regression that the decision boundary is determined using a cutoff of 0.5 for the predicted probabilities).
+
+### Nonlinear decision boundaries
+
+Generate the regions for the `kNN` method and support vector machines using a radial kernel and comment on the differences between the generated boundaries.
+
+Both generated decision regions are nonlinear and non-parametric. However, the `kNN` fits are much more volatile since they are more readily impacted by lone points in this case. The radial kernel can adapt non-linearly but also retains smoothness.

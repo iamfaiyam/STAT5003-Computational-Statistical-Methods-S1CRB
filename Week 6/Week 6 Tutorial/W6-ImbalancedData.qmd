@@ -1,0 +1,73 @@
+---
+title: "W6-ImbalancedData"
+format: html
+editor: visual
+---
+
+## Libraries to load 
+
+```{r, message=FALSE, warning=FALSE}
+library(randomForest) 
+library(tidyverse) 
+library(mlbench) 
+library(ROSE) 
+library(caret)
+```
+
+## Pima Indians Diabetes
+
+```{r}
+data(PimaIndiansDiabetes2, package = "mlbench")
+dat <- PimaIndiansDiabetes2 |> select(-insulin, -triceps) |> drop_na()
+table(dat$diabetes) 
+set.seed(1) 
+train_obs = sample(1:nrow(dat), size = floor(nrow(dat)/2), replace = FALSE)
+test_obs = -train_obs
+train = dat[train_obs, ]
+test = dat[test_obs, ]
+```
+
+```{r}
+pima_rf <- randomForest::randomForest(diabetes~., data = train) 
+caret::confusionMatrix(predict(pima_rf, test), test$diabetes, positive = 'pos')
+```
+
+### Oversampling
+
+```{r}
+table(train$diabetes) 
+over <- ROSE::ovun.sample(diabetes~., data = train, method = "over", N = 232*2)$data
+table(over$diabetes)
+```
+
+```{r}
+pima_rf_over <- randomForest::randomForest(diabetes~., data = over) 
+caret::confusionMatrix(predict(pima_rf_over, test), test$diabetes, positive = 'pos')
+```
+
+### Undersampling
+
+```{r}
+table(train$diabetes) 
+under <- ROSE::ovun.sample(diabetes~., data = train, method = "under", N = 113*2)$data
+table(over$diabetes)
+```
+
+```{r}
+pima_rf_under <- randomForest::randomForest(diabetes~., data = under) 
+caret::confusionMatrix(predict(pima_rf_over, test), test$diabetes, positive = 'pos')
+```
+
+### Both over and undersampling
+
+```{r}
+table(train$diabetes) 
+both <- ROSE::ovun.sample(diabetes~., data = train, method = "both", N = 200*2)$data
+table(both$diabetes)
+nrow(both)
+```
+
+```{r}
+pima_rf_both <- randomForest::randomForest(diabetes~., data = both) 
+caret::confusionMatrix(predict(pima_rf_both, test), test$diabetes, positive = 'pos')
+```

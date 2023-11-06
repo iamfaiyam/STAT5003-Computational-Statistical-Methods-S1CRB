@@ -1,0 +1,232 @@
+---
+title: "OSTA5003 Week 2 Homework"
+subtitle: "Semester 1B, 2023"
+format:
+    html:
+        code-fold: true
+        code-line-numbers: true
+        number-sections: true
+        number-depth: 1
+        code-tools: true
+        embed-resources: true
+---
+
+# Wine quality reviews
+
+Load the wine quality data and remove the id column
+
+```{r}
+suppressPackageStartupMessages(library(tidyverse))
+# Load the data
+wine_dat <- read.csv("winequality-cat.csv", stringsAsFactors = TRUE)
+wine_dat[["id"]] <- NULL
+```
+
+## Create training and test split
+
+Split the dataset into 50% training and 50% testing.
+
+```{r load}
+# Use caret to create a training and test split
+library(caret)
+set.seed(20230502)
+indices <- createDataPartition(wine_dat$quality, p = 0.5, list = FALSE)
+train_dat <- wine_dat[indices, ]
+test_dat <- wine_dat[-indices, ]
+```
+
+## Calibrating Random Forest
+
+Assess the performance of a random forest model using `ranger`. Build the model on the training data and assess against the test data. In particular, consider how the performance changes as you vary the number of trees in the forest.
+
+* Create a vector of values for the number of trees to try. You should try at least 10 different values of the number of trees and include the case of 1 tree (almost a decision tree).
+* For each value of the number of trees, build a random forest model using `ranger` and assess the performance on the test data. Use the accuracy on the test data as the performance metric.
+* Visualize the results plotting the number of trees against the accuracy on the test data.
+
+```{r split}
+ntree_seq <- c(2, 4, 6, 8, 10, 12, 14, 16, 18, 20)
+```
+
+Using the `ntree_seq` vector, do the three steps mentioned above in two ways.
+
+### Approach A
+
+Fit a random forest model for each specified number of trees and store the accuracy on the test data in a vector and visualize the results.
+
+```{r rfA}
+# Lets first fit a random forest model for the values above
+library(ranger)
+
+# Create empty vector to store the accuracies we achieve
+accuracy_vector <- numeric(length(ntree_seq))
+
+# Fit the random forest models in a loop, to assess each value in the vector aforementioned
+for (i in 1:length(ntree_seq)) {
+  set.seed(20230502)
+  model <- ranger(quality ~., data = train_dat, num.trees = ntree_seq[i])
+  
+  # Predicting the model 
+  predictions <- predict(model, data = test_dat)$predictions
+  
+  # Storing accuracies into the vector
+  accuracy_vector[i] <- sum(predictions == test_dat$quality) / length(test_dat$quality) 
+  
+}
+
+# Visualising the results
+plot(ntree_seq, accuracy_vector, type = "b",
+     xlab = "Number of Trees", 
+     ylab = "Accuracy on Test data", 
+     main = "Performance of random forest model")
+
+```
+
+
+### Approach B
+
+Modify the second step by only fitting one single random forest using the largest number of trees in the sequence. Resuse the same random forest but only predict the accuracy on the test set using the number of trees specified in the vector `ntree_seq`.
+
+```{r rfB}
+# Training a random forest model with maximum number of trees
+set.seed(20230502) 
+max_tree <- ranger(quality ~., data = train_dat, num.trees = max(ntree_seq))
+
+# Predicting accuracy with max number of trees on test set 
+test_accuracies <- vector(mode = "numeric", length = length(ntree_seq))
+
+# Looping but now including the max model on predictions
+for (i in 1:length(ntree_seq)) {
+  predictions <- predict(max_tree, data = test_dat, num.trees = ntree_seq[i])$predictions
+  
+  test_accuracies[i] <- mean(predictions == test_dat$quality) 
+}
+
+# Visualising the test accuracy of the max tree model 
+plot(ntree_seq, test_accuracies, type = "b",
+     xlab = "Number of Trees", 
+     ylab = "Accuracy on Test data", 
+     main = "Performance of random forest model")
+```
+
+# Construct a 10-fold cross validation
+
+Design a 10-fold cross-validation procedure to evaluate a kNN classification model (with $k=5$) accuracy. Use `class::knn()` and NOT the `caret` package (but you can use the caret package to create validation cross fold partitions.)
+
+## Create a 10 fold split
+
+Create a 10-fold split and partition up the data into the appropriate training, test splits to be used in the `knn` call
+
+```{r kfolds}
+#| eval: false
+# Delete the eval line above (or set to true) once you fix the code below
+kfolds <- createFolds(wine_dat$quality, k = 10)
+# Function that takes observation indices, creates training and test split
+# returns a list with two data.frames (training and test)
+create_training_and_test <- function(index, data, k = 10) {
+  train_data <- data[index, ] # incomplete code, use index in the right way
+  test_data <- data[-index, ]
+  list(training = train_data, test = test_data)
+}
+kfold_training_and_test <- lapply(kfolds, create_training_and_test, data = wine_dat)
+# kfold_training_and_test
+```
+
+## Compute the predicted values on each test fold
+
+Using your training test split over the 10 folds. Fit the `knn` models and extract the observed and predicted class labels for each of the 10 folds. (_Hint_: Write a function that does this prediction step for later use, ideally it should have arguments for the training and test data and perhaps the number of nearest neighbours)
+
+```{r fit}
+#| eval: false
+# Delete the eval line (or set to true) once you fix the code below
+library(class)
+fit_knn_and_reports_obs_and_pred <- function(data_list, k = 5) {
+  train_data <- data_list[["training"]]
+  test_data <- data_list[["test"]]
+  train_arg <- train_data[, -ncol(train_data)] # Remove the target/outcome column
+  test_arg <- test_data[, -ncol(test_data)] # Remove the target/outcome column
+  cl_arg <- train_data[, ncol(train_data)] # Extract the target/outcome
+  model <- knn(
+    train = train_arg,
+    test = test_arg, 
+    cl = cl_arg,
+# More code here
+    k = k)
+  list(observed = test_data[, ncol(test_data)], predicted = model)
+}
+obs_and_pred <- lapply(kfold_training_and_test, fit_knn_and_reports_obs_and_pred)
+# obs_and_pred
+```
+
+## Compute the performance metrics
+
+Using the predicted and observed values in each case, calculate the sensitivity, specificity, accuracy and $F_1$ score for the kNN classifier. You may use the `caret::confusionMatrix` or an equivalent helper function from another package if you wish. Look at the performance and identify if it has good/bad performance in the metrics.
+
+```{r performance}
+#| eval: false
+performance_calcs <- function(obs_and_pred) {
+  # Code that computes accuracy and confusion matrix
+  conf_mat <- caret::confusionMatrix(obs_and_pred$predicted, obs_and_pred$observed)
+  
+  sensitivity <- conf_mat$sensitivity
+  specificity <- conf_mat$specificity
+  accuracy <- conf_mat$overall['Accuracy']
+  f1_score <- conf_mat$byClass['F1']
+  
+  list(sensitivity = sensitivity, specificity = specificity, accuracy = accuracy, f1_score = f1_score) 
+}
+
+performance_metrics <- lapply(obs_and_pred, performance_calcs)
+performance_metrics
+```
+
+# Extend to write your own repeated cross validation
+
+Use your code above to conduct a repeated cross validation of say `m = 100` runs (or however many you wish given the speed of your code or computation power of your hardware) to construct a sample of CV performance estimates for Accuracy, Sensitivity, Specificity and the F1 scores. Visualize your estimates. You may use the `caret::createMultiFolds` or create your own if you wish. The `createMultiFolds` function returns the data in a slightly different format (see the documentation at `? createFolds`)
+
+Couldn't get it to work...
+
+```{r}
+library(caret)
+library(ggplot2)
+
+# Define the function to calculate performance metrics
+performance_calcs <- function(obs_and_pred) {
+  conf_mat <- confusionMatrix(obs_and_pred$predicted, obs_and_pred$observed)
+  
+  sensitivity <- conf_mat$sensitivity
+  specificity <- conf_mat$specificity
+  accuracy <- conf_mat$overall['Accuracy']
+  f1_score <- conf_mat$byClass['F1']
+  
+  list(sensitivity = sensitivity, specificity = specificity, accuracy = accuracy, f1_score = f1_score) 
+}
+
+# Define the number of folds and repeats
+num_folds <- 5
+num_repeats <- 100
+
+#cv_folds <- createMultiFolds(quality, k = num_folds, times = num_repeats)
+
+# Initialize a list to store the CV performance estimates
+cv_performance <- list()
+
+# Loop over the folds and repeats to fit the model and calculate performance metrics
+#for (i in 1:num_repeats) {
+  #for (j in 1:num_folds) {
+    
+    # Calculate the performance metrics and store in the list
+    #cv_performance[[paste0("rep", i, "_fold", j)]] <- performance_calcs(obs_and_pred)
+  #}
+#}
+
+# Combine the performance metrics into a data frame
+#cv_performance_df <- data.frame(do.call(rbind, cv_performance))
+
+# Visualize the distribution of performance estimates using boxplots
+#par(mfrow = c(2,2))
+#boxplot(cv_performance_df$accuracy ~ 1, main = "Accuracy")
+#boxplot(cv_performance_df$sensitivity ~ 1, main = "Sensitivity")
+#boxplot(cv_performance_df$specificity ~ 1, main = "Specificity")
+#boxplot(cv_performance_df$f1_score ~ 1, main = "F1 Score")
+
+```
